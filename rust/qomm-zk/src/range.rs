@@ -15,6 +15,7 @@ use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 
+#[derive(Clone)]
 pub struct RangeCtx {
     pub pc_gens: PedersenGens,
     pub bp_gens: BulletproofGens,

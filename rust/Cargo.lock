@@ -516,7 +516,6 @@ dependencies = [
 [[package]]
 name = "qomm-dsl"
 version = "0.1.0"
-source = "git+https://github.com/shukob/qomm#972396e61c46b602059a62c25be2ee4779889221"
 dependencies = [
  "sha2",
 ]
@@ -914,3 +913,43 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[patch.unused]]
+name = "deccp-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "dekyx-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-audit"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-law"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-mpc"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-sim"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-transport"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-avalanche-vm"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-defmi"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "zkpi-defmi-sdk"
+version = "0.1.0"

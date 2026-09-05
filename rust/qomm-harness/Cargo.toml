@@ -6,9 +6,9 @@ license.workspace = true
 autobins = false
 
 [dependencies]
-qomm-measure = { path = "../qomm-measure" }
-qomm-proofs = { path = "../qomm-proofs" }
-qomm-zk = { path = "../qomm-zk" }
+qomm-measure.workspace = true
+qomm-proofs.workspace = true
+qomm-zk.workspace = true
 curve25519-dalek.workspace = true
 ed25519-dalek.workspace = true
 merlin.workspace = true

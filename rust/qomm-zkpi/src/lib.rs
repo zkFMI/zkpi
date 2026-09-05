@@ -562,6 +562,7 @@ impl PartialInstruction {
 }
 
 /// The settlement side: verify, then spend once.
+#[derive(Clone)]
 pub struct Venue {
     pub key: Pedersen,
     /// Which venue, chain, rail and protocol version this is. See `digest_for`.
