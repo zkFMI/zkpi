@@ -1,0 +1,72 @@
+command=cargo fmt --manifest-path qomm-batch-audit/Cargo.toml && cargo clippy --manifest-path qomm-batch-audit/Cargo.toml --all-targets -- -D warnings && cargo test --manifest-path qomm-batch-audit/Cargo.toml --release --all-targets -- --nocapture && cd /integration/src/defmi/rust && cargo fmt --all && cargo test --release -p qomm-defmi --test note_chain -- --nocapture && cargo test --release -p qomm-defmi --features public-audit --test recipient_delivery --test notes --test note_settlement && cargo test --release -p qomm-avalanche-vm application_lifecycle
+P5 smoke: slots=8 real_entries=3 proof_bytes=66892 prove_and_verify_ms=151
+P5 smoke: verify_ms=2
+test tests::vm_rejects_disconnected_chain_and_failed_settlement ... ok
+test tests::empty_period_has_a_real_complete_proof ... ok
+test tests::actual_stark_binds_public_chain_and_rejects_substitution ... ok
+test cli_proves_verifies_and_requires_independent_matching_records ... ok
+test note_issuance_must_be_signed_during_csd_validity ... ok
+test account_free_note_statements_match_the_pinned_consensus_vectors ... ok
+test note_consolidation_preserves_the_exact_commitment_sum ... ok
+test exact_reserve_accepts_a_zero_refund_but_not_a_zero_delivery ... ok
+test recipient_recovers_and_materializes_a_final_claim_without_revealing_its_opening ... ok
+test delegated_claim_statements_match_the_pinned_consensus_vectors ... ok
+test account_free_consensus_timestamps_fit_sqlites_signed_integer_domain ... ok
+test nothing_is_applied_when_a_leg_fails ... ok
+test a_cash_leg_for_the_wrong_value_is_refused ... ok
+test a_receipt_is_signed_over_what_it_says ... ok
+test the_same_instruction_cannot_settle_twice ... ok
+test two_payments_to_one_address_share_no_bytes ... ok
+test an_honest_settlement_moves_both_rails_and_signs_a_receipt ... ok
+test verified_wallet_dvp_and_typed_zkpi_project_only_to_a_non_product_note_order ... ok
+test threshold_dvp_projects_to_predelegated_claims_without_a_post_quote_wallet_spend ... ok
+test a_recent_ring_holds_the_note_and_stays_inside_the_pool ... ok
+test a_recent_ring_rejects_what_the_uniform_one_rejects ... ok
+test a_recent_ring_draws_from_the_window_and_widens_to_reach_the_note ... ok
+test a_ring_has_to_be_a_power_of_two_and_fit_the_pool ... ok
+test a_note_ledger_under_an_issuer_refuses_an_unsigned_note ... ok
+test a_prover_cannot_select_an_ineligible_decoy ... ok
+test outputs_must_sum_to_the_note ... ok
+test scanning_finds_only_your_own ... ok
+test a_note_spends_once ... ok
+test a_reblinded_serial_cannot_stand_in_for_a_fresh_one ... ok
+test a_hidden_input_can_be_bound_to_one_reservation_lock_class ... ok
+test the_unchecked_append_is_closed_once_a_note_ledger_has_an_issuer - should panic ... ok
+test a_spend_verifies_and_the_payee_finds_its_note ... ok
+test the_pool_keeps_spent_notes ... ok
+test the_state_root_is_a_function_of_what_the_ledger_holds ... ok
+test two_payments_to_one_address_are_unlinkable ... ok
+test a_tag_for_the_wrong_asset_cannot_spend ... ok
+test the_state_root_moves_on_every_change_and_agrees_across_ledgers ... ok
+test verifier_complete_spend_proof_round_trips_canonically ... ok
+test the_spend_looks_the_same_wherever_the_real_note_sits ... ok
+test canonical_delivery_roundtrip_requires_the_independent_recipient_key ... ok
+test execution::tests::application_lifecycle::closing_one_order_does_not_release_the_counterpartys_remaining_reserve ... ok
+test execution::tests::application_lifecycle::native_claim_redemption_rejects_rebinding_and_legacy_approval_bypass ... ok
+test execution::tests::application_lifecycle::expired_pq_keys_block_new_execution_but_preserve_accepted_fill_integrity ... ok
+test execution::tests::application_lifecycle::public_expiry_returns_unfilled_note_to_original_wallet_without_signatures ... ok
+test execution::tests::application_lifecycle::application_bridge_retries_exact_certified_bytes_and_checks_finality_receipt ... ok
+test execution::tests::application_lifecycle::native_hybrid_fill_and_cancel_reject_missing_corrupt_or_substituted_approval ... ok
+test execution::tests::application_lifecycle::native_recipient_redeems_final_refund_without_governance_or_destination_keys ... ok
+test execution::tests::application_lifecycle::partial_expiry_and_ordered_cancellation_release_exact_current_head ... ok
+test execution::tests::application_lifecycle::atomic_native_batch_updates_cumulative_holds_once_and_survives_state_reopen ... ok
+test execution::tests::application_lifecycle::native_monetary_and_head_checks_reject_even_freshly_committee_signed_forgery ... ok
+test execution::tests::application_lifecycle::unsigned_candidate_verification_never_authorizes_native_execution ... ok
+test execution::tests::application_lifecycle::successive_partial_fills_keep_only_remainders_locked_and_recover_after_restart ... ok
+test execution::tests::application_lifecycle::native_batch_rejects_extraction_omission_reorder_and_rolls_back_a_bad_second_fill ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 5.73s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+image_id=sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97
+input_before=6dc7d9b998fe6b6c4fe528fac5ff3f650905023fb719b9c21229c38741505f83  .artifacts/20260905T213547Z-zkpi-rust-input-before.sha256
+input_after=7fd4ba6af961277f4a78a718324203c306fded4f2e9f8283132c14e7503beca8  .artifacts/20260905T213547Z-zkpi-rust-input-after.sha256
+completed_at=2026-09-05T21:41:47Z
+result=PASS

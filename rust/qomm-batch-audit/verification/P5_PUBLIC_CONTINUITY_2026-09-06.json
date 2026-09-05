@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-05T21:45:15.106Z",
+  "scope": "P5 public state-continuity STARK adapter and real NoteReceipt integration",
+  "verdict": "verified_component",
+  "full_system_pqc_complete": false,
+  "backend": {
+    "crate": "miden-vm",
+    "version": "0.32.0",
+    "crate_sha256": "1e46e30617133c18e4c627f5e022bccae2bc4dd163d5d9cd591d27b5eb06583a",
+    "source_commit": "12884a0ff13cf5e5de698411b4dad73b35a51e9b",
+    "license": "MIT OR Apache-2.0",
+    "production_audited": false
+  },
+  "runtime": {
+    "settlement_environment": "Real cryptographic execution in the in-process DeFMI Rust state machine; not a live Avalanche validator network",
+    "host": "softbank-l40s",
+    "observed_hostname": "ngi-external022-vm1",
+    "image_id": "sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97",
+    "completed_at": "2026-09-05T21:41:47Z"
+  },
+  "checks": {
+    "p5_strict_clippy": "pass",
+    "standalone_proof_tests": 3,
+    "cli_integration_tests": 1,
+    "real_defmi_receipt_test": "an_honest_settlement_moves_both_rails_and_signs_a_receipt",
+    "defmi_note_settlement_tests": 8,
+    "defmi_notes_tests": 20,
+    "recipient_delivery_tests": 1,
+    "vm_application_lifecycle_tests": 13,
+    "excluded_diagnostics": [
+      "Two note_chain consensus-vector extraction tests are diagnostic only and are not acceptance evidence."
+    ]
+  },
+  "observed_smoke": {
+    "fixed_slots": 8,
+    "synthetic_real_entries": 3,
+    "proof_bytes": 66892,
+    "prove_and_verify_ms": 151,
+    "verify_ms": 2,
+    "statistical_performance_claim": false
+  },
+  "source_guard": {
+    "after_manifest_sha256": "7fd4ba6af961277f4a78a718324203c306fded4f2e9f8283132c14e7503beca8",
+    "p5_local_files_match_remote_after": true,
+    "sources": [
+      {
+        "path": "zkpi/rust/qomm-batch-audit/Cargo.lock",
+        "sha256": "3a0ad1845885f22c2fb96368f4637f1d472685aa4bd8d5846dba9ee1de311a31"
+      },
+      {
+        "path": "zkpi/rust/qomm-batch-audit/Cargo.toml",
+        "sha256": "31d03c1f40348288c5d06c324ff73df77bbd183dbfc2fc18d2cb86cf7b7b73b9"
+      },
+      {
+        "path": "zkpi/rust/qomm-batch-audit/src/batch.masm",
+        "sha256": "168b06e8d1e9777cb8b7afa84ab554370e7106915bc87734e90ef947ac68632e"
+      },
+      {
+        "path": "zkpi/rust/qomm-batch-audit/src/lib.rs",
+        "sha256": "916a602e00463527eae11d61cd1abe79ebca5f50eb1e2e0d0e53e8ff0464d5d1"
+      },
+      {
+        "path": "zkpi/rust/qomm-batch-audit/src/main.rs",
+        "sha256": "e8cc47d13ecbd06b9f8233ad91bb4435ab8e480fc891c68b17c16496d5235e80"
+      },
+      {
+        "path": "zkpi/rust/qomm-batch-audit/tests/cli.rs",
+        "sha256": "606693a7af9fc5831179ff2da9616593c48c9c2809eab81f0eb1c29482e22dac"
+      }
+    ]
+  },
+  "evidence": {
+    "full_log_local_path": "/Users/shukob/Research/DeFMI/zkfmi-crypto/.worktrees/pqc-astra-high/zkfmi-crypto/.artifacts/20260905T213547Z-zkpi-rust.log",
+    "full_log_sha256": "c9b41fde62d558cf6a39796f12a2ca04e7cd8c5231a06339f22c2e7158e840f3",
+    "excerpt": "P5_PUBLIC_CONTINUITY_2026-09-06.log",
+    "excerpt_note": "Exact selected log lines; full command, full-log hash and local source are retained."
+  },
+  "boundaries": [
+    "Proof binds a fixed program, ordered public state-root continuity, settled flags, receipt and zkPI digests, and the verifier-provided context.",
+    "Receipt authenticity and chain finality remain external trust inputs. Hidden values, price/winner/range rules, guarantee conservation, Pedersen/anonymous/nullifier relations are not reproved.",
+    "No private-witness privacy claim, quantitative quantum security level, production deployment or fixed-time publication is established."
+  ],
+  "remaining": [
+    "The follow-up authenticated NoteReceipt public adapter is being wired and requires its own later gate.",
+    "Temporary sibling path dependency must become an immutable published Git revision; final standalone release verification is pending.",
+    "Operator scheduling/finality-source ingestion and broader P1-P6 acceptance are separate gates."
+  ]
+}

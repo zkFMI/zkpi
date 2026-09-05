@@ -1,0 +1,36 @@
+# Fixed eight-slot public state-continuity relation. All inputs are public
+# records or hashes of public records; this is not a private-value proof.
+# Initial stack: CURRENT_ROOT, CONTEXT, EXPECTED_FINAL, EXPECTED_BATCH.
+begin
+    mem_storew_le.0 dropw
+    mem_storew_le.4 dropw
+    mem_storew_le.8 dropw
+    mem_storew_le.12 dropw
+    repeat.8
+        adv_pushw mem_storew_le.16 dropw
+        adv_pushw mem_storew_le.20 dropw
+        adv_pushw mem_storew_le.24 dropw
+        adv_push dup assert mem_store.28
+
+        padw mem_loadw_le.0
+        padw mem_loadw_le.16
+        assert_eqw
+
+        # row = H(before, H(after, H([settled,0,0,0], receipt))).
+        padw mem_loadw_le.24
+        padw mem_loadw_le.28 hmerge
+        padw mem_loadw_le.20 hmerge
+        padw mem_loadw_le.16 hmerge
+        # accumulator = H(accumulator, row).
+        padw mem_loadw_le.4 hmerge
+        mem_storew_le.4 dropw
+        padw mem_loadw_le.20 mem_storew_le.0 dropw
+    end
+    padw mem_loadw_le.0
+    padw mem_loadw_le.8
+    assert_eqw
+    padw mem_loadw_le.4
+    padw mem_loadw_le.12
+    assert_eqw
+    push.1 swap drop
+end

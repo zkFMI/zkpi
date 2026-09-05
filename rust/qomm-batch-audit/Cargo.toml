@@ -1,0 +1,15 @@
+[package]
+name = "qomm-batch-audit"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+zkfmi-crypto = { git = "https://github.com/shukob/zkfmi-crypto.git", rev = "713e842a7e298e6224297b03df9d6ade19148bb2" }
+miden-core = "=0.32.0"
+miden-vm = { version = "=0.32.0", features = ["concurrent"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

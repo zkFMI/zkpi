@@ -247,3 +247,37 @@ fn probing_volume_and_the_privacy_budget_are_capped_separately() {
         Err(Refused::PrivacyBudget)
     );
 }
+
+#[test]
+fn registry_authentication_requires_both_enrolled_components() {
+    let (issuer, _) = issuer_with(2);
+    let cohort = cohort_id("JP", "bank", 2);
+    let registry = issuer.publish(&cohort, 1, 10_000).unwrap();
+    let key = issuer.public_key();
+    assert_eq!(registry.signature.len(), 3373);
+    assert!(qomm_proofs::kyb::KybIssuerKey::from_bytes(&key.as_bytes()[..32]).is_err());
+    for index in [0, 64, 3372] {
+        let mut altered = registry.clone();
+        altered.signature[index] ^= 1;
+        assert_eq!(
+            verify_registry(&altered, &key, 1),
+            Err(Invalid::BadIssuerSignature)
+        );
+    }
+    let mut stripped = registry.clone();
+    stripped.signature.truncate(64);
+    assert_eq!(
+        verify_registry(&stripped, &key, 1),
+        Err(Invalid::BadIssuerSignature)
+    );
+    let (other, _) = issuer_with(2);
+    for range in [0..32, 32..1984] {
+        let mut changed = key.to_bytes();
+        changed[range.clone()].copy_from_slice(&other.public_key().as_bytes()[range]);
+        let untrusted = qomm_proofs::kyb::KybIssuerKey::from_bytes(&changed).unwrap();
+        assert_eq!(
+            verify_registry(&registry, &untrusted, 1),
+            Err(Invalid::NotFromTrustedIssuer)
+        );
+    }
+}

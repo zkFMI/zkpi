@@ -1,7 +1,8 @@
 //! A verifier that reads bytes and answers, with nothing else in the process.
 //!
 //! ```text
-//! qomm-zkpi-verify --quorum <hex> --now <unix seconds> [--domain <s>] < instruction.bin
+//! qomm-zkpi-verify --quorum <hex> --pq-committee <enrolled.json> --now <unix seconds> [--domain <s>] < instruction.bin
+//! qomm-zkpi-verify --parse-only < instruction.bin # syntax only, no authorization
 //! qomm-zkpi-verify --vectors <dir>          # write the test vectors
 //! qomm-zkpi-verify --check-vectors <dir>    # and check them again
 //! qomm-zkpi-verify --write-spec <path>      # refresh only the generated section
@@ -27,6 +28,8 @@ const SPEC_END: &str = "<!-- END GENERATED WIRE SPEC -->";
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut quorum = None;
+    let mut pq_committee = None;
+    let mut parse_only = false;
     let mut now = None;
     let mut domain: Option<String> = None;
     let mut vectors: Option<String> = None;
@@ -39,6 +42,14 @@ fn main() -> ExitCode {
             "--quorum" => {
                 quorum = args.get(i + 1).cloned();
                 i += 2;
+            }
+            "--pq-committee" => {
+                pq_committee = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--parse-only" => {
+                parse_only = true;
+                i += 1;
             }
             "--now" => {
                 now = args.get(i + 1).cloned();
@@ -92,8 +103,15 @@ fn main() -> ExitCode {
         // Issue one, put it on the wire, take it off again, and verify it the
         // way a venue would --- so the binary can demonstrate the whole path
         // without anybody having to hold a quorum key first.
-        let (instruction, package, bounds) =
+        let (mut instruction, package, bounds) =
             qomm_zkpi::wire_vectors::production_sample_with_quorum();
+        let policy = match add_self_test_quorum(&mut instruction, &package) {
+            Ok(policy) => policy,
+            Err(why) => {
+                eprintln!("self-test provisioning failed: {why}");
+                return ExitCode::from(2);
+            }
+        };
         let bytes = qomm_zkpi::wire::encode(&instruction);
         let back = match decode(&bytes) {
             Ok(i) => i,
@@ -103,8 +121,22 @@ fn main() -> ExitCode {
             }
         };
         let mut venue = Venue::new(Pedersen::new(b"qomm:defmi:v1"), &bounds, package)
-            .require_threshold_ranges();
+            .require_threshold_ranges()
+            .require_pq_committee(policy)
+            .expect("self-test committee was generated for this package");
         venue.domain = qomm_zkpi::DEFAULT_DOMAIN.to_vec();
+        let mut classical_only = back.clone();
+        classical_only.pq_approval = None;
+        let mut corrupt = back.clone();
+        corrupt.pq_approval.as_mut().unwrap().signatures[0].signature[0] ^= 1;
+        if venue
+            .verify(&classical_only, instruction.deadline - 1)
+            .is_ok()
+            || venue.verify(&corrupt, instruction.deadline - 1).is_ok()
+        {
+            eprintln!("self-test accepted a missing or corrupt PQ approval");
+            return ExitCode::from(1);
+        }
         return match venue.verify(&back, instruction.deadline - 1) {
             Ok(()) => {
                 println!(
@@ -112,7 +144,9 @@ fn main() -> ExitCode {
                     bytes.len(),
                     &hex(&fingerprint(&bytes))[..16]
                 );
-                println!("accepted --- issued, encoded, decoded and verified");
+                println!(
+                    "accepted: FROST AND 3-of-7 ML-DSA-65; classical-only and corrupt PQ rejected"
+                );
                 ExitCode::SUCCESS
             }
             Err(why) => {
@@ -126,8 +160,14 @@ fn main() -> ExitCode {
         return vectors_command(&dir, check.is_some());
     }
 
+    const MAX_INPUT_BYTES: u64 = 4 * 1024 * 1024;
     let mut bytes = Vec::new();
-    if std::io::stdin().read_to_end(&mut bytes).is_err() {
+    if std::io::stdin()
+        .take(MAX_INPUT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .is_err()
+        || bytes.len() as u64 > MAX_INPUT_BYTES
+    {
         eprintln!("could not read the instruction from standard input");
         return ExitCode::from(2);
     }
@@ -154,12 +194,17 @@ fn main() -> ExitCode {
         instruction.range_commitment_count()
     );
 
-    let (Some(quorum), Some(now)) = (quorum, now) else {
-        println!(
-            "no --quorum and --now given, so the layout was checked and the \
-                  proofs were not. That is a parse, not a verification."
-        );
+    if parse_only {
+        if quorum.is_some() || pq_committee.is_some() || now.is_some() {
+            eprintln!("--parse-only cannot be combined with verification options");
+            return ExitCode::from(2);
+        }
+        println!("parsed only; signatures and authorization were not verified");
         return ExitCode::SUCCESS;
+    }
+    let (Some(quorum), Some(pq_committee), Some(now)) = (quorum, pq_committee, now) else {
+        eprintln!("verification requires --quorum, --pq-committee and --now; syntax-only inspection requires --parse-only");
+        return ExitCode::from(2);
     };
     let raw = match decode_hex(&quorum) {
         Some(v) => v,
@@ -187,7 +232,30 @@ fn main() -> ExitCode {
         }
     };
     let bounds = Bounds::default();
-    let mut venue = Venue::new(Pedersen::new(b"qomm:defmi:v1"), &bounds, package);
+    let policy: qomm_zkpi::QuorumPolicy = match std::fs::read(&pq_committee)
+        .map_err(|error| error.to_string())
+        .and_then(|bytes| {
+            if bytes.len() > 1024 * 1024 {
+                return Err("committee file exceeds 1 MiB".into());
+            }
+            serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+        }) {
+        Ok(policy) => policy,
+        Err(why) => {
+            eprintln!("invalid enrolled PQ committee: {why}");
+            return ExitCode::from(2);
+        }
+    };
+    let mut venue = match Venue::new(Pedersen::new(b"qomm:defmi:v1"), &bounds, package)
+        .require_threshold_ranges()
+        .require_pq_committee(policy)
+    {
+        Ok(venue) => venue,
+        Err(why) => {
+            eprintln!("invalid enrolled committee: {why}");
+            return ExitCode::from(2);
+        }
+    };
     if let Some(d) = domain {
         venue.domain = d.into_bytes();
     }
@@ -201,6 +269,66 @@ fn main() -> ExitCode {
             ExitCode::from(1)
         }
     }
+}
+
+fn add_self_test_quorum(
+    instruction: &mut qomm_zkpi::Instruction,
+    classical: &frost_ristretto255::keys::PublicKeyPackage,
+) -> Result<qomm_zkpi::QuorumPolicy, String> {
+    use sha2::{Digest, Sha256};
+    use zkfmi_crypto::{
+        backend::MlDsa65Signer,
+        key::{KeyId, KeyPurpose, KeyRecord, ParticipantId},
+        quorum::{QuorumMember, QuorumPolicy, SUITE},
+        suite::Version,
+        traits::Signer,
+    };
+    let now = instruction.deadline - 1;
+    let keys = (0..7)
+        .map(|_| MlDsa65Signer::generate().map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let policy = QuorumPolicy {
+        version: Version::V1,
+        epoch: 1,
+        purpose: KeyPurpose::SettlementInstruction,
+        context: b"ZKPI:CLI:SELF-TEST:v1".to_vec(),
+        classical_binding: Sha256::digest(classical.serialize().map_err(|e| e.to_string())?).into(),
+        threshold: 3,
+        members: keys
+            .iter()
+            .enumerate()
+            .map(|(index, signer)| QuorumMember {
+                node: index as u16 + 1,
+                key: KeyRecord {
+                    participant_id: ParticipantId::new(format!("self-test-node-{index}")).unwrap(),
+                    key_id: KeyId::new(format!("self-test-pq-{index}")).unwrap(),
+                    key_version: 1,
+                    suite: SUITE,
+                    purpose: KeyPurpose::SettlementInstruction,
+                    public_key: signer.public_key(),
+                    not_before: 0,
+                    not_after: instruction.deadline + 1,
+                    revoked_at: None,
+                    rotation_proof: None,
+                    dekyx_binding: None,
+                },
+            })
+            .collect(),
+    };
+    let message = instruction.digest_for(qomm_zkpi::DEFAULT_DOMAIN);
+    let shares = (1..=3)
+        .map(|node| {
+            policy
+                .sign_member(node, &keys[node as usize - 1], &message, now)
+                .map_err(|e| e.to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    instruction.pq_approval = Some(
+        policy
+            .assemble(shares, &message, now)
+            .map_err(|e| e.to_string())?,
+    );
+    Ok(policy)
 }
 
 fn splice_generated_spec(document: &str) -> Result<String, String> {

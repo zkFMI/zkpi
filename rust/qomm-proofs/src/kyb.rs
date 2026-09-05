@@ -24,12 +24,38 @@
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use qomm_zk::or_dleq::{self, Proof, Statement};
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::sync::Arc;
+use zkfmi_crypto::{
+    backend::{Ed25519Signer, MlDsa65Signer},
+    hybrid::signature::{HybridSigner, HybridVerifier},
+    key::KeyPurpose,
+    traits::{Signer, Verifier},
+};
+
+/// Independently enrolled hybrid issuer key. Classical-only encodings are rejected.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct KybIssuerKey([u8; 1984]);
+impl KybIssuerKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        let raw: [u8; 1984] = bytes
+            .try_into()
+            .map_err(|_| "KYB issuer requires an enrolled hybrid public key")?;
+        ed25519_dalek::VerifyingKey::from_bytes(raw[..32].try_into().unwrap())
+            .map_err(|_| "invalid KYB classical public key")?;
+        Ok(Self(raw))
+    }
+    pub fn to_bytes(self) -> [u8; 1984] {
+        self.0
+    }
+    pub fn as_bytes(&self) -> &[u8; 1984] {
+        &self.0
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct BusinessAttributes {
@@ -120,9 +146,9 @@ pub struct SignedCohortRegistry {
     pub registry_epoch: u64,
     pub expires_at: u64,
     pub points: Vec<RistrettoPoint>,
-    pub issuer: VerifyingKey,
+    pub issuer: KybIssuerKey,
     pub registry_id: [u8; 32],
-    pub signature: Signature,
+    pub signature: Vec<u8>,
 }
 
 impl SignedCohortRegistry {
@@ -131,10 +157,10 @@ impl SignedCohortRegistry {
         epoch: u64,
         expires_at: u64,
         points: &[RistrettoPoint],
-        issuer: &VerifyingKey,
+        issuer: &KybIssuerKey,
     ) -> Vec<u8> {
         let mut h = Sha256::new();
-        h.update(b"qomm:kyb-registry:");
+        h.update(b"QOMM:KYB:HYBRID-REGISTRY:v2:");
         h.update(cohort.as_bytes());
         h.update(epoch.to_be_bytes());
         h.update(expires_at.to_be_bytes());
@@ -153,7 +179,7 @@ impl SignedCohortRegistry {
         registry_epoch: u64,
         expires_at: u64,
         mut points: Vec<RistrettoPoint>,
-        signing: &SigningKey,
+        signing: &HybridSigner,
     ) -> Result<Self, &'static str> {
         if cohort.trim().is_empty() || registry_epoch == 0 || expires_at == 0 || points.is_empty() {
             return Err("cohort registry is incomplete");
@@ -165,12 +191,14 @@ impl SignedCohortRegistry {
         {
             return Err("cohort registry contains duplicate entities");
         }
-        let issuer = signing.verifying_key();
+        let issuer = KybIssuerKey::from_bytes(&signing.public_key())?;
         let body = Self::body(cohort, registry_epoch, expires_at, &points, &issuer);
         let registry_id: [u8; 32] = body
             .try_into()
             .map_err(|_| "cohort registry digest is malformed")?;
-        let signature = signing.sign(&registry_id);
+        let signature = signing
+            .sign(KeyPurpose::Attestation, &registry_id)
+            .map_err(|_| "KYB registry signing failed")?;
         Ok(Self {
             cohort: cohort.to_string(),
             registry_epoch,
@@ -250,7 +278,7 @@ impl KybPresentation {
 }
 
 pub struct KybIssuer {
-    signing: SigningKey,
+    signing: Arc<HybridSigner>,
     pub max_tier: u32,
     enrolled: HashMap<String, KybCredential>,
 }
@@ -270,8 +298,15 @@ pub enum Invalid {
 
 impl KybIssuer {
     pub fn new<R: RngCore + CryptoRng>(max_tier: u32, rng: &mut R) -> Self {
+        let mut classical = zeroize::Zeroizing::new([0; 32]);
+        let mut pq = zeroize::Zeroizing::new([0; 32]);
+        rng.fill_bytes(classical.as_mut());
+        rng.fill_bytes(pq.as_mut());
         KybIssuer {
-            signing: SigningKey::generate(rng),
+            signing: Arc::new(HybridSigner::new(
+                Ed25519Signer::from_seed(&classical),
+                MlDsa65Signer::from_seed(&pq),
+            )),
             max_tier,
             enrolled: HashMap::new(),
         }
@@ -281,7 +316,10 @@ impl KybIssuer {
     /// construction remains convenient for tests, while deployed verifiers
     /// can pin a key that survives process restarts instead of trusting a key
     /// carried by the registry it signs.
-    pub fn with_signing_key(max_tier: u32, signing: SigningKey) -> Result<Self, &'static str> {
+    pub fn with_signing_key(
+        max_tier: u32,
+        signing: Arc<HybridSigner>,
+    ) -> Result<Self, &'static str> {
         if max_tier == 0 {
             return Err("maximum tier must be positive");
         }
@@ -292,8 +330,8 @@ impl KybIssuer {
         })
     }
 
-    pub fn public_key(&self) -> VerifyingKey {
-        self.signing.verifying_key()
+    pub fn public_key(&self) -> KybIssuerKey {
+        KybIssuerKey::from_bytes(&self.signing.public_key()).expect("hybrid signer public encoding")
     }
 
     pub fn enroll<R: RngCore + CryptoRng>(
@@ -330,14 +368,16 @@ impl KybIssuer {
     }
 
     /// Attribution hook: a bad policy stays traceable to an enrolled entity.
-    pub fn sign_policy_digest(&self, digest: &[u8]) -> Vec<u8> {
-        self.signing.sign(digest).to_bytes().to_vec()
+    pub fn sign_policy_digest(&self, digest: &[u8]) -> Result<Vec<u8>, &'static str> {
+        self.signing
+            .sign(KeyPurpose::Attestation, digest)
+            .map_err(|_| "KYB policy signing failed")
     }
 }
 
 pub fn verify_registry(
     registry: &SignedCohortRegistry,
-    trusted: &VerifyingKey,
+    trusted: &KybIssuerKey,
     now: u64,
 ) -> Result<(), Invalid> {
     if registry.issuer != *trusted {
@@ -367,8 +407,13 @@ pub fn verify_registry(
     if body != registry.registry_id {
         return Err(Invalid::RegistryIdMismatch);
     }
-    trusted
-        .verify(&registry.registry_id, &registry.signature)
+    HybridVerifier
+        .verify(
+            KeyPurpose::Attestation,
+            trusted.as_bytes(),
+            &registry.registry_id,
+            &registry.signature,
+        )
         .map_err(|_| Invalid::BadIssuerSignature)
 }
 
@@ -415,7 +460,7 @@ pub fn present<R: RngCore + CryptoRng>(
 pub fn verify_presentation(
     presentation: &KybPresentation,
     registry: &SignedCohortRegistry,
-    trusted: &VerifyingKey,
+    trusted: &KybIssuerKey,
     scope: &[u8],
     context: &[u8],
     now: u64,

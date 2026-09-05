@@ -11,54 +11,74 @@ use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use rand_core::{CryptoRng, RngCore};
-use sha2::{Digest, Sha512};
+use sha2::Digest;
 use std::collections::BTreeSet;
+use zkfmi_crypto::{
+    hybrid::kem::HybridKemKey,
+    sealed::{SealedMessage, SealingPurpose, RECIPIENT_PUBLIC_BYTES},
+    traits::KemDecapsulator,
+};
 
 use crate::threshold_sigma::{lagrange_at_zero, PartyId};
 
-const MASK_DOMAIN: &[u8] = b"QOMM:MPC:CLAIM-OPENING-MASK:v1";
-const ENVELOPE_DOMAIN: &[u8] = b"QOMM:MPC:CLAIM-OPENING-ENVELOPE:v1";
+const ENVELOPE_DOMAIN: &[u8] = b"QOMM:MPC:CLAIM-OPENING-ENVELOPE:v2";
 
-fn mask(
-    context: &[u8; 32],
-    party: PartyId,
-    ephemeral: &RistrettoPoint,
-    shared: &RistrettoPoint,
-    label: &[u8],
-) -> Scalar {
-    let mut hash = Sha512::new();
-    hash.update(MASK_DOMAIN);
-    hash.update(context);
-    hash.update((party as u64).to_be_bytes());
-    hash.update(ephemeral.compress().as_bytes());
-    hash.update(shared.compress().as_bytes());
-    hash.update((label.len() as u64).to_be_bytes());
-    hash.update(label);
-    Scalar::from_bytes_mod_order_wide(&hash.finalize().into())
+fn share_context(context: &[u8; 32], party: PartyId, recipient_view: &RistrettoPoint) -> [u8; 32] {
+    sha2::Sha256::new()
+        .chain_update(ENVELOPE_DOMAIN)
+        .chain_update(context)
+        .chain_update((party as u64).to_be_bytes())
+        .chain_update(recipient_view.compress().as_bytes())
+        .finalize()
+        .into()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EncryptedOpeningShare {
     pub party: PartyId,
-    pub ephemeral: RistrettoPoint,
-    pub masked_value: Scalar,
-    pub masked_blinding: Scalar,
+    pub recipient_public: Vec<u8>,
+    pub sealed: SealedMessage,
+    /// Public reblinding offset bound by the enclosing signed claim.
+    pub blinding_adjustment: Scalar,
 }
 
 impl EncryptedOpeningShare {
     pub fn validate(&self) -> Result<(), String> {
-        if self.party == 0 || self.ephemeral == RistrettoPoint::identity() {
-            return Err("encrypted opening share has an invalid party or ephemeral key".into());
+        if self.party == 0 || self.recipient_public.len() != RECIPIENT_PUBLIC_BYTES {
+            return Err("encrypted opening share has an invalid party or recipient key".into());
         }
-        Ok(())
+        self.sealed
+            .validate(SealingPurpose::ThresholdOpeningShare, 64)
+            .map_err(|e| e.to_string())
     }
 
-    fn opening(&self, context: &[u8; 32], recipient_view_secret: &Scalar) -> (Scalar, Scalar) {
-        let shared = self.ephemeral * recipient_view_secret;
-        (
-            self.masked_value - mask(context, self.party, &self.ephemeral, &shared, b"value"),
-            self.masked_blinding - mask(context, self.party, &self.ephemeral, &shared, b"blinding"),
-        )
+    fn opening(
+        &self,
+        context: &[u8; 32],
+        recipient_view: &RistrettoPoint,
+        recipient: &HybridKemKey,
+    ) -> Result<(Scalar, Scalar), String> {
+        if recipient.public_key() != self.recipient_public {
+            return Err("opening recipient key differs from enrolled key".into());
+        }
+        let clear = self
+            .sealed
+            .open(
+                recipient,
+                SealingPurpose::ThresholdOpeningShare,
+                &share_context(context, self.party, recipient_view),
+                64,
+            )
+            .map_err(|e| e.to_string())?;
+        let value = Option::<Scalar>::from(Scalar::from_canonical_bytes(
+            clear[..32].try_into().expect("fixed size"),
+        ))
+        .ok_or("noncanonical opening value")?;
+        let blinding = Option::<Scalar>::from(Scalar::from_canonical_bytes(
+            clear[32..].try_into().expect("fixed size"),
+        ))
+        .ok_or("noncanonical opening blinding")?;
+        Ok((value, blinding + self.blinding_adjustment))
     }
 }
 
@@ -78,25 +98,34 @@ pub fn opening_context(job_id: &[u8; 32], leg: &str) -> Result<[u8; 32], String>
     Ok(hash.finalize().into())
 }
 
+/// The caller obtains recipient_public from its independently enrolled recipient directory.
 pub fn encrypt_opening_share<R: RngCore + CryptoRng>(
     context: [u8; 32],
     party: PartyId,
     value_share: Scalar,
     blinding_share: Scalar,
     recipient_view: &RistrettoPoint,
-    rng: &mut R,
+    recipient_public: &[u8],
+    _rng: &mut R,
 ) -> Result<EncryptedOpeningShare, String> {
     if party == 0 || *recipient_view == RistrettoPoint::identity() {
-        return Err("opening share needs a party and recipient view key".into());
+        return Err("opening share needs a party and recipient".into());
     }
-    let ephemeral_secret = Scalar::random(&mut *rng);
-    let ephemeral = G * ephemeral_secret;
-    let shared = recipient_view * ephemeral_secret;
+    let mut clear = zkfmi_crypto::traits::SecretBytes::new(vec![0u8; 64]);
+    clear[..32].copy_from_slice(value_share.as_bytes());
+    clear[32..].copy_from_slice(blinding_share.as_bytes());
+    let sealed = SealedMessage::seal(
+        recipient_public,
+        SealingPurpose::ThresholdOpeningShare,
+        &share_context(&context, party, recipient_view),
+        clear.as_ref(),
+    )
+    .map_err(|e| e.to_string())?;
     Ok(EncryptedOpeningShare {
         party,
-        ephemeral,
-        masked_value: value_share + mask(&context, party, &ephemeral, &shared, b"value"),
-        masked_blinding: blinding_share + mask(&context, party, &ephemeral, &shared, b"blinding"),
+        recipient_public: recipient_public.to_vec(),
+        sealed,
+        blinding_adjustment: Scalar::ZERO,
     })
 }
 
@@ -136,6 +165,9 @@ impl OpeningEnvelope {
         let mut parties = BTreeSet::new();
         for share in &self.shares {
             share.validate()?;
+            if share.recipient_public != self.shares[0].recipient_public {
+                return Err("opening shares disagree on enrolled recipient key".into());
+            }
             if !parties.insert(share.party) {
                 return Err("opening envelope repeats a proof party".into());
             }
@@ -148,6 +180,7 @@ impl OpeningEnvelope {
     pub fn decrypt(
         &self,
         recipient_view_secret: &Scalar,
+        recipient_key: &HybridKemKey,
         quorum: &[PartyId],
     ) -> Result<(Scalar, Scalar), String> {
         self.validate()?;
@@ -166,7 +199,8 @@ impl OpeningEnvelope {
                 .iter()
                 .find(|share| share.party == *party)
                 .ok_or_else(|| "claim opening quorum names an absent proof party".to_string())?;
-            let (value_share, blinding_share) = share.opening(&self.context, recipient_view_secret);
+            let (value_share, blinding_share) =
+                share.opening(&self.context, &self.recipient_view, recipient_key)?;
             let coefficient = coefficients
                 .get(party)
                 .ok_or_else(|| "claim opening interpolation omitted a party".to_string())?;
@@ -179,13 +213,14 @@ impl OpeningEnvelope {
     pub fn decrypt_u64(
         &self,
         recipient_view_secret: &Scalar,
+        recipient_key: &HybridKemKey,
         quorum: &[PartyId],
         bits: usize,
     ) -> Result<(u64, Scalar), String> {
         if bits == 0 || bits > 64 {
             return Err("claim opening amount range is outside the supported bound".into());
         }
-        let (value, blinding) = self.decrypt(recipient_view_secret, quorum)?;
+        let (value, blinding) = self.decrypt(recipient_view_secret, recipient_key, quorum)?;
         // Scalars created from a u64 use the canonical little-endian encoding.
         // Recover that encoding directly instead of performing an O(2^bits)
         // search, which made a 32-bit settlement claim unusable in practice.
@@ -214,9 +249,9 @@ impl OpeningEnvelope {
         hash.update((self.shares.len() as u64).to_be_bytes());
         for share in &self.shares {
             hash.update((share.party as u64).to_be_bytes());
-            hash.update(share.ephemeral.compress().as_bytes());
-            hash.update(share.masked_value.to_bytes());
-            hash.update(share.masked_blinding.to_bytes());
+            hash.update(&share.recipient_public);
+            hash.update(share.sealed.binding_bytes());
+            hash.update(share.blinding_adjustment.to_bytes());
         }
         Ok(hash.finalize().into())
     }
@@ -232,6 +267,7 @@ mod tests {
     #[test]
     fn recipient_recovers_any_threshold_subset_but_another_key_cannot() {
         let recipient = Scalar::from(77_u64);
+        let recipient_key = HybridKemKey::generate().unwrap();
         let other = Scalar::from(78_u64);
         let amount = 4_300_000_000_u64;
         let value = Scalar::from(amount);
@@ -256,19 +292,60 @@ mod tests {
                     shares.value_shares[party],
                     shares.blinding_shares[party],
                     &(G * recipient),
+                    &recipient_key.public_key(),
                     &mut OsRng,
                 )
                 .unwrap()
             })
             .collect();
         let envelope = OpeningEnvelope::new(context, 3, G * recipient, encrypted).unwrap();
-        assert!(envelope.decrypt_u64(&recipient, &[1, 4, 7], 32).is_err());
+        for first in 1..=5 {
+            for second in first + 1..=6 {
+                for third in second + 1..=7 {
+                    assert_eq!(
+                        envelope
+                            .decrypt_u64(&recipient, &recipient_key, &[first, second, third], 64)
+                            .unwrap(),
+                        (amount, blinding)
+                    );
+                }
+            }
+        }
+        let wrong_key = HybridKemKey::generate().unwrap();
+        assert!(envelope
+            .decrypt(&recipient, &wrong_key, &[1, 4, 7])
+            .is_err());
+        for component in 0..6 {
+            let mut altered = envelope.clone();
+            match component {
+                0 => altered.shares[0].sealed.kem_ciphertext[0] ^= 1,
+                1 => altered.shares[0].sealed.kem_ciphertext[32] ^= 1,
+                2 => altered.shares[0].sealed.nonce[0] ^= 1,
+                3 => altered.shares[0].sealed.ciphertext[0] ^= 1,
+                4 => altered.shares[0].sealed.tag[0] ^= 1,
+                _ => altered.context[0] ^= 1,
+            }
+            assert!(altered
+                .decrypt(&recipient, &recipient_key, &[1, 4, 7])
+                .is_err());
+        }
+        assert!(envelope
+            .decrypt_u64(&recipient, &recipient_key, &[1, 4, 7], 32)
+            .is_err());
         assert_eq!(
-            envelope.decrypt_u64(&recipient, &[1, 4, 7], 64).unwrap(),
+            envelope
+                .decrypt_u64(&recipient, &recipient_key, &[1, 4, 7], 64)
+                .unwrap(),
             (amount, blinding)
         );
-        assert!(envelope.decrypt_u64(&recipient, &[1, 4, 7], 65).is_err());
-        assert!(envelope.decrypt(&other, &[1, 4, 7]).is_err());
-        assert!(envelope.decrypt(&recipient, &[1, 4]).is_err());
+        assert!(envelope
+            .decrypt_u64(&recipient, &recipient_key, &[1, 4, 7], 65)
+            .is_err());
+        assert!(envelope
+            .decrypt(&other, &recipient_key, &[1, 4, 7])
+            .is_err());
+        assert!(envelope
+            .decrypt(&recipient, &recipient_key, &[1, 4])
+            .is_err());
     }
 }
