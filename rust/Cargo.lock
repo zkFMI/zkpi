@@ -1309,22 +1309,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[patch.unused]]
-name = "qomm-avalanche-vm"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "qomm-defmi"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "zkpi-defmi-sdk"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "dekyx-core"
-version = "0.1.0"
-
-[[patch.unused]]
 name = "qomm-audit"
 version = "0.1.0"
 
@@ -1345,5 +1329,21 @@ name = "qomm-transport"
 version = "0.1.0"
 
 [[patch.unused]]
+name = "dekyx-core"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "deccp-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-avalanche-vm"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "qomm-defmi"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "zkpi-defmi-sdk"
 version = "0.1.0"

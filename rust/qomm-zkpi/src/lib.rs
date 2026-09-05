@@ -657,16 +657,43 @@ impl Venue {
         Ok(self)
     }
 
+    /// Verify an application-owned canonical context with this venue's
+    /// enrolled committee. The base payment is verified separately.
+    pub fn verify_authorization(
+        &self,
+        message: &[u8],
+        classical: &frost::Signature,
+        pq: &Option<QuorumApproval>,
+        now: u64,
+    ) -> Result<(), &'static str> {
+        self.group_public
+            .verifying_key()
+            .verify(message, classical)
+            .map_err(|_| "application classical authorization does not verify")?;
+        self.verify_pq_approval(pq, message, now)
+    }
+
     fn verify_pq_approval(
         &self,
         approval: &Option<zkfmi_crypto::quorum::QuorumApproval>,
         message: &[u8],
         now: u64,
     ) -> Result<(), &'static str> {
+        self.verify_pq_approval_at(approval, message, Some(now))
+    }
+
+    fn verify_pq_approval_at(
+        &self,
+        approval: &Option<QuorumApproval>,
+        message: &[u8],
+        now: Option<u64>,
+    ) -> Result<(), &'static str> {
         match (&self.pq_policy, approval) {
-            (Some(policy), Some(value)) => policy
-                .verify(value, message, now)
-                .map_err(|_| "PQ quorum approval does not verify"),
+            (Some(policy), Some(value)) => match now {
+                Some(now) => policy.verify(value, message, now),
+                None => policy.verify_archived_signatures(value, message),
+            }
+            .map_err(|_| "PQ quorum approval does not verify"),
             (Some(_), None) => Err("this venue requires the PQ quorum approval"),
             (None, Some(_)) => Err("a hybrid instruction requires an enrolled PQ committee"),
             (None, None) => Ok(()), // Explicit classical compatibility format.
@@ -674,6 +701,21 @@ impl Venue {
     }
 
     pub fn verify(&self, instruction: &Instruction, now: u64) -> Result<(), &'static str> {
+        self.verify_at(instruction, now, false)
+    }
+
+    /// Verify cryptographic integrity of a previously accepted record.
+    /// This does not authorize a new settlement or establish its execution time.
+    pub fn verify_archived(&self, instruction: &Instruction) -> Result<(), &'static str> {
+        self.verify_at(instruction, instruction.deadline, true)
+    }
+
+    fn verify_at(
+        &self,
+        instruction: &Instruction,
+        now: u64,
+        archived: bool,
+    ) -> Result<(), &'static str> {
         if instruction.deadline > now.saturating_add(self.max_horizon) {
             return Err("the deadline is further out than this venue will hold a \
 nullifier for");
@@ -752,10 +794,10 @@ nullifier for");
                 &instruction.signature,
             )
             .map_err(|_| "the quorum signature does not verify")?;
-        self.verify_pq_approval(
+        self.verify_pq_approval_at(
             &instruction.pq_approval,
             &instruction.digest_for(&self.domain),
-            now,
+            (!archived).then_some(now),
         )?;
         Ok(())
     }
