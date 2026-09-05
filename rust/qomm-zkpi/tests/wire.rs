@@ -6,7 +6,7 @@
 //! and fail the first, and it is the first that decides whether two venues can
 //! settle the same instruction.
 
-use qomm_zkpi::wire::{decode, encode, fingerprint, spec, WireError, MAGIC, VERSION};
+use qomm_zkpi::wire::{decode, encode, fingerprint, spec, WireError, HYBRID_VERSION, MAGIC};
 use qomm_zkpi::wire_vectors;
 
 #[test]
@@ -26,9 +26,10 @@ fn an_instruction_survives_the_wire_unchanged() {
 }
 
 #[test]
-fn generated_spec_names_version_two_as_the_product_format() {
+fn generated_spec_names_hybrid_version_three_and_classical_compatibility() {
     let rendered = spec();
-    assert!(rendered.starts_with("# zkPI on the wire, version 2"));
+    assert!(rendered.starts_with("# zkPI on the wire, version 3"));
+    assert!(rendered.contains("ML-DSA-65"));
     assert!(rendered.contains("quote proof digest"));
     assert!(rendered.contains("jointly assembled threshold range proof"));
     assert!(rendered.contains("Version 1 compatibility format"));
@@ -78,14 +79,14 @@ fn every_shipped_vector_does_what_it_says() {
 #[test]
 fn a_version_this_build_does_not_know_is_refused_and_not_guessed_at() {
     let mut bytes = encode(&wire_vectors::sample());
-    bytes[MAGIC.len()..MAGIC.len() + 2].copy_from_slice(&(VERSION + 1).to_be_bytes());
+    bytes[MAGIC.len()..MAGIC.len() + 2].copy_from_slice(&(HYBRID_VERSION + 1).to_be_bytes());
     assert_eq!(
         decode(&bytes).err(),
-        Some(WireError::UnknownVersion(VERSION + 1))
+        Some(WireError::UnknownVersion(HYBRID_VERSION + 1))
     );
     // and the message says why, because guessing at a layout is the failure
     // that settles a different payment rather than none
-    assert!(WireError::UnknownVersion(VERSION + 1)
+    assert!(WireError::UnknownVersion(HYBRID_VERSION + 1)
         .to_string()
         .contains("valid point"));
 }

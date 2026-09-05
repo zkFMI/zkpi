@@ -9,6 +9,7 @@ use crate::{frost, wire};
 
 pub const MAGIC: &[u8; 8] = b"QOMMTZPI";
 pub const VERSION: u16 = 1;
+pub const HYBRID_VERSION: u16 = 2;
 pub const CONTEXT_MAGIC: &[u8; 8] = b"QOMMCTX1";
 pub const CONTEXT_VERSION: u16 = 1;
 const MAX_BASE_BYTES: usize = 1_048_576;
@@ -174,7 +175,12 @@ pub fn encode(instruction: &TypedInstruction) -> Vec<u8> {
     let context = &instruction.context;
     let mut output = Vec::with_capacity(base.len() + 408);
     output.extend_from_slice(MAGIC);
-    output.extend_from_slice(&VERSION.to_be_bytes());
+    let version = if instruction.pq_authorization.is_some() {
+        HYBRID_VERSION
+    } else {
+        VERSION
+    };
+    output.extend_from_slice(&version.to_be_bytes());
     output.extend_from_slice(&(base.len() as u32).to_be_bytes());
     output.extend_from_slice(&base);
     append_context(&mut output, context);
@@ -184,6 +190,13 @@ pub fn encode(instruction: &TypedInstruction) -> Vec<u8> {
             .serialize()
             .expect("a FROST signature serializes"),
     );
+    if let Some(approval) = &instruction.pq_authorization {
+        let bytes = approval
+            .encode()
+            .expect("a canonical typed PQ approval serializes");
+        output.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+        output.extend_from_slice(&bytes);
+    }
     output
 }
 
@@ -198,7 +211,7 @@ pub fn decode(bytes: &[u8]) -> Result<TypedInstruction, Error> {
             .try_into()
             .map_err(|_| Error::Truncated("version"))?,
     );
-    if version != VERSION {
+    if version != VERSION && version != HYBRID_VERSION {
         return Err(Error::UnknownVersion(version));
     }
     let base_length = u32::from_be_bytes(
@@ -215,6 +228,26 @@ pub fn decode(bytes: &[u8]) -> Result<TypedInstruction, Error> {
     let context = read_context(&mut reader)?;
     let authorization = frost::Signature::deserialize(reader.take(64, "authorization")?)
         .map_err(|_| Error::InvalidSignature)?;
+    let pq_authorization = if version == HYBRID_VERSION {
+        if payment.pq_approval.is_none() {
+            return Err(Error::InvalidBase);
+        }
+        let length = u32::from_be_bytes(
+            reader
+                .take(4, "PQ authorization length")?
+                .try_into()
+                .map_err(|_| Error::InvalidSignature)?,
+        ) as usize;
+        Some(
+            zkfmi_crypto::quorum::QuorumApproval::decode(reader.take(length, "PQ authorization")?)
+                .map_err(|_| Error::InvalidSignature)?,
+        )
+    } else {
+        if payment.pq_approval.is_some() {
+            return Err(Error::InvalidBase);
+        }
+        None
+    };
     if reader.at != bytes.len() {
         return Err(Error::Trailing(bytes.len() - reader.at));
     }
@@ -225,5 +258,6 @@ pub fn decode(bytes: &[u8]) -> Result<TypedInstruction, Error> {
         payment,
         context,
         authorization,
+        pq_authorization,
     })
 }

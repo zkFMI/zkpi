@@ -279,6 +279,7 @@ pub struct TypedInstruction {
     /// v1 signature lets existing venues reject v2 cleanly while the product
     /// verifier requires both.
     pub authorization: frost::Signature,
+    pub pq_authorization: Option<zkfmi_crypto::quorum::QuorumApproval>,
 }
 
 pub fn digest_for(
@@ -335,7 +336,8 @@ impl Venue {
         self.group_public
             .verifying_key()
             .verify(&digest, &instruction.authorization)
-            .map_err(|_| "the typed zkPI authorization does not verify")
+            .map_err(|_| "the typed zkPI authorization does not verify")?;
+        self.verify_pq_approval(&instruction.pq_authorization, &digest, now)
     }
 
     pub fn settle_typed(

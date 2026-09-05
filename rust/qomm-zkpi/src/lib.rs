@@ -28,6 +28,33 @@ use sha2::{Digest, Sha512};
 use std::collections::{BTreeMap, HashSet};
 
 pub use frost_ristretto255 as frost;
+pub use zkfmi_crypto::quorum::{QuorumApproval, QuorumPolicy};
+
+/// Check a caller-enrolled PQ policy against the same classical committee.
+/// This validates binding, not the caller's authority to enroll those keys.
+pub fn validate_settlement_committee(
+    policy: &QuorumPolicy,
+    public: &frost::keys::PublicKeyPackage,
+) -> Result<(), &'static str> {
+    use sha2::Sha256;
+    policy.validate().map_err(|_| "PQ committee is invalid")?;
+    let bytes = public
+        .serialize()
+        .map_err(|_| "FROST public package is invalid")?;
+    let binding: [u8; 32] = Sha256::digest(bytes).into();
+    if policy.purpose != zkfmi_crypto::key::KeyPurpose::SettlementInstruction
+        || policy.classical_binding != binding
+        || policy.members.len() != public.verifying_shares().len()
+        || policy.members.iter().any(|member| {
+            frost::Identifier::try_from(member.node)
+                .ok()
+                .is_none_or(|node| !public.verifying_shares().contains_key(&node))
+        })
+    {
+        return Err("PQ committee differs from the registered FROST committee");
+    }
+    Ok(())
+}
 
 pub const AMOUNT_RANGE_CONTEXT: &[u8] = b"qomm:zkpi:ranges:amount";
 pub const PRICE_RANGE_CONTEXT: &[u8] = b"qomm:zkpi:ranges:price";
@@ -127,6 +154,9 @@ pub struct Instruction {
     pub nonce: [u8; 32],
     pub quote_binding: QuoteBinding,
     pub signature: frost::Signature,
+    /// Present only in the explicit hybrid wire version. Production venues
+    /// verify against an enrolled policy, never a policy sent with this value.
+    pub pq_approval: Option<zkfmi_crypto::quorum::QuorumApproval>,
 }
 
 /// What the issuer keeps: the openings, which the counterparties need.
@@ -557,7 +587,18 @@ impl PartialInstruction {
             nonce: self.nonce,
             quote_binding: self.quote_binding,
             signature,
+            pq_approval: None,
         }
+    }
+
+    pub fn sealed_hybrid(
+        self,
+        signature: frost::Signature,
+        pq_approval: zkfmi_crypto::quorum::QuorumApproval,
+    ) -> Instruction {
+        let mut instruction = self.sealed(signature);
+        instruction.pq_approval = Some(pq_approval);
+        instruction
     }
 }
 
@@ -573,6 +614,7 @@ pub struct Venue {
     spent: HashSet<[u8; 32]>,
     max_horizon: u64,
     require_threshold_ranges: bool,
+    pq_policy: Option<zkfmi_crypto::quorum::QuorumPolicy>,
 }
 
 impl Venue {
@@ -592,6 +634,7 @@ impl Venue {
             spent: HashSet::new(),
             max_horizon: bounds.max_horizon,
             require_threshold_ranges: false,
+            pq_policy: None,
         }
     }
 
@@ -601,6 +644,33 @@ impl Venue {
     pub fn require_threshold_ranges(mut self) -> Self {
         self.require_threshold_ranges = true;
         self
+    }
+
+    /// The caller authenticates enrollment. Every member must belong to the
+    /// same canonical FROST committee; both signature components are required.
+    pub fn require_pq_committee(
+        mut self,
+        policy: zkfmi_crypto::quorum::QuorumPolicy,
+    ) -> Result<Self, &'static str> {
+        validate_settlement_committee(&policy, &self.group_public)?;
+        self.pq_policy = Some(policy);
+        Ok(self)
+    }
+
+    fn verify_pq_approval(
+        &self,
+        approval: &Option<zkfmi_crypto::quorum::QuorumApproval>,
+        message: &[u8],
+        now: u64,
+    ) -> Result<(), &'static str> {
+        match (&self.pq_policy, approval) {
+            (Some(policy), Some(value)) => policy
+                .verify(value, message, now)
+                .map_err(|_| "PQ quorum approval does not verify"),
+            (Some(_), None) => Err("this venue requires the PQ quorum approval"),
+            (None, Some(_)) => Err("a hybrid instruction requires an enrolled PQ committee"),
+            (None, None) => Ok(()), // Explicit classical compatibility format.
+        }
     }
 
     pub fn verify(&self, instruction: &Instruction, now: u64) -> Result<(), &'static str> {
@@ -682,6 +752,11 @@ nullifier for");
                 &instruction.signature,
             )
             .map_err(|_| "the quorum signature does not verify")?;
+        self.verify_pq_approval(
+            &instruction.pq_approval,
+            &instruction.digest_for(&self.domain),
+            now,
+        )?;
         Ok(())
     }
 

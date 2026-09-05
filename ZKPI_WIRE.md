@@ -1,5 +1,22 @@
 <!-- BEGIN GENERATED WIRE SPEC -->
-# zkPI on the wire, version 2
+# zkPI on the wire, version 3
+
+Hybrid instructions require both the classical signature and the ML-DSA-65 quorum approval under the venue's enrolled committee. The wire contains no self-authorizing PQ policy. The verifier checks node/key identity, generation, committee epoch, validity and distinct signers before consuming the payment nullifier.
+
+| outer field | bytes | meaning |
+| --- | ---: | --- |
+| magic | 8 | QOMMZKPI |
+| version | 2 | 3 |
+| classical body length | 4 | at most 1 MiB |
+| classical body | that many | complete canonical version 1 or 2; nested version 3 is forbidden |
+| PQ approval length | 4 | at most 1 MiB |
+| PQ approval | that many | canonical ZKPQQRM1 envelope |
+
+The ZKPQQRM1 approval contains magic (8), format version (u16), suite ID/version (u16 each), committee epoch (u64), committee SHA-256 (32), and signer count (u16, 1..64). Each signer contains node ID (u16), key-ID byte length (u32, 1..256), UTF-8 key ID, key generation (u32) and exactly 3309 ML-DSA-65 signature bytes. All integers are big-endian. Signers must be strictly increasing and unique; unknown versions/suites, truncated data and trailing bytes are refused.
+
+Typed zkPI version 2 carries a hybrid payment body and appends a length-prefixed PQ approval to the existing context and classical typed authorization. Both approvals must use the registered committee. Classical typed version 1 cannot carry a hybrid base payment.
+
+## Version 2 classical body
 
 Big-endian throughout. Every field is fixed-width or length-prefixed, and the order below is the order on the wire. Nothing is optional: an instruction with a field missing is not a shorter instruction.
 

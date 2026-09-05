@@ -120,6 +120,7 @@ fn typed(operation: OperationKind) -> (TypedInstruction, Quorum) {
     let authorization = sign(&q, &typed_digest, &mut rng);
     (
         TypedInstruction {
+            pq_authorization: None,
             payment,
             context,
             authorization,
@@ -134,6 +135,118 @@ fn venue(q: &Quorum) -> Venue {
         &Bounds::default(),
         q.public.clone(),
     )
+}
+
+#[test]
+fn hybrid_payment_and_typed_wire_require_both_registered_quorums() {
+    use sha2::{Digest, Sha256};
+    use zkfmi_crypto::{
+        backend::MlDsa65Signer,
+        key::{KeyId, KeyPurpose, KeyRecord, ParticipantId},
+        quorum::{QuorumMember, QuorumPolicy, SUITE},
+        suite::Version,
+        traits::Signer,
+    };
+    let (mut instruction, q) = typed(OperationKind::Settle);
+    let legacy = qomm_zkpi::wire::encode(&instruction.payment);
+    let signers = (1_u8..=7)
+        .map(|seed| MlDsa65Signer::from_seed(&[seed; 32]))
+        .collect::<Vec<_>>();
+    let policy = QuorumPolicy {
+        version: Version::V1,
+        epoch: 1,
+        purpose: KeyPurpose::SettlementInstruction,
+        context: b"typed-instruction-test".to_vec(),
+        classical_binding: Sha256::digest(q.public.serialize().unwrap()).into(),
+        threshold: 3,
+        members: signers
+            .iter()
+            .enumerate()
+            .map(|(index, signer)| QuorumMember {
+                node: index as u16 + 1,
+                key: KeyRecord {
+                    participant_id: ParticipantId::new(format!("node-{index}")).unwrap(),
+                    key_id: KeyId::new(format!("pq-{index}")).unwrap(),
+                    key_version: 1,
+                    suite: SUITE,
+                    purpose: KeyPurpose::SettlementInstruction,
+                    public_key: signer.public_key(),
+                    not_before: 900,
+                    not_after: 1100,
+                    revoked_at: None,
+                    rotation_proof: None,
+                    dekyx_binding: None,
+                },
+            })
+            .collect(),
+    };
+    let approve = |message: &[u8]| {
+        policy
+            .assemble(
+                (1_u16..=3)
+                    .map(|node| {
+                        policy
+                            .sign_member(node, &signers[node as usize - 1], message, 1000)
+                            .unwrap()
+                    })
+                    .collect(),
+                message,
+                1000,
+            )
+            .unwrap()
+    };
+    instruction.payment.pq_approval =
+        Some(approve(&instruction.payment.digest_for(DEFAULT_DOMAIN)));
+    instruction.pq_authorization = Some(approve(&instruction.digest_for(DEFAULT_DOMAIN).unwrap()));
+    let encoded = qomm_zkpi::wire::encode(&instruction.payment);
+    assert_eq!(
+        &encoded[8..10],
+        &qomm_zkpi::wire::HYBRID_VERSION.to_be_bytes()
+    );
+    let decoded = qomm_zkpi::wire::decode(&encoded).unwrap();
+    assert_eq!(qomm_zkpi::wire::encode(&decoded), encoded);
+    assert_eq!(
+        qomm_zkpi::wire::encode(&qomm_zkpi::wire::decode(&legacy).unwrap()),
+        legacy
+    );
+    let typed_bytes = typed_wire::encode(&instruction);
+    assert_eq!(
+        &typed_bytes[8..10],
+        &typed_wire::HYBRID_VERSION.to_be_bytes()
+    );
+    let instruction = typed_wire::decode(&typed_bytes).unwrap();
+    assert_eq!(typed_wire::encode(&instruction), typed_bytes);
+    let mut target = venue(&q).require_pq_committee(policy.clone()).unwrap();
+    target.verify_typed(&instruction, 1000).unwrap();
+    assert!(venue(&q).verify_typed(&instruction, 1000).is_err());
+    let mut missing = instruction.clone();
+    missing.payment.pq_approval = None;
+    assert!(target.verify_typed(&missing, 1000).is_err());
+    missing = instruction.clone();
+    missing.pq_authorization = None;
+    assert!(target.verify_typed(&missing, 1000).is_err());
+    let mut corrupt = instruction.clone();
+    corrupt.pq_authorization.as_mut().unwrap().signatures[0].signature[0] ^= 1;
+    assert!(target.settle_typed(&corrupt, 1000).is_err());
+    assert_eq!(target.spent(), 0);
+    let (other, _) = typed(OperationKind::Settle);
+    corrupt = instruction.clone();
+    corrupt.authorization = other.authorization;
+    assert!(target.verify_typed(&corrupt, 1000).is_err());
+    assert!(target.verify_typed(&instruction, 1100).is_err());
+    let mut stale = policy;
+    stale.epoch += 1;
+    assert!(venue(&q)
+        .require_pq_committee(stale)
+        .unwrap()
+        .verify_typed(&instruction, 1000)
+        .is_err());
+    let mut trailing = typed_bytes;
+    trailing.push(0);
+    assert!(typed_wire::decode(&trailing).is_err());
+    assert!(qomm_zkpi::wire::decode(&encoded[..encoded.len() - 1]).is_err());
+    target.settle_typed(&instruction, 1000).unwrap();
+    assert!(target.settle_typed(&instruction, 1000).is_err());
 }
 
 #[test]

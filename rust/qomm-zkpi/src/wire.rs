@@ -1,5 +1,9 @@
 //! The bytes a zero-knowledge payment instruction travels as.
 //!
+//! Hybrid version 3 wraps one canonical version-1/2 body and a PQ quorum
+//! approval. Nested hybrid containers are rejected. The classical layouts and
+//! their golden vectors remain exact compatibility formats.
+//!
 //! An instruction is meant to be accepted by a venue that did not issue it and
 //! does not run this code --- that is what "deliberately pluggable" has to mean
 //! before it means anything. A struct in one language is not an interface. So:
@@ -62,6 +66,7 @@ use crate::{Instruction, QuoteBinding, RangeEvidence};
 pub const MAGIC: &[u8; 8] = b"QOMMZKPI";
 pub const LEGACY_VERSION: u16 = 1;
 pub const VERSION: u16 = 2;
+pub const HYBRID_VERSION: u16 = 3;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum WireError {
@@ -87,7 +92,7 @@ impl std::fmt::Display for WireError {
             WireError::NotAnInstruction => write!(f, "this does not begin QOMMZKPI"),
             WireError::UnknownVersion(v) => write!(
                 f,
-                "version {v}, and this build knows {LEGACY_VERSION} and {VERSION}. Refused rather \
+                "version {v}, and this build knows {LEGACY_VERSION}, {VERSION} and {HYBRID_VERSION}. Refused rather \
                  than guessed at --- a misparsed commitment is a valid point."
             ),
             WireError::Truncated { wanted, had, at } => {
@@ -151,6 +156,23 @@ impl<'a> Reader<'a> {
 }
 
 pub fn encode(instruction: &Instruction) -> Vec<u8> {
+    let classical = encode_classical(instruction);
+    let Some(approval) = &instruction.pq_approval else {
+        return classical;
+    };
+    let pq = approval
+        .encode()
+        .expect("a canonical PQ approval serializes");
+    let mut out = MAGIC.to_vec();
+    out.extend_from_slice(&HYBRID_VERSION.to_be_bytes());
+    out.extend_from_slice(&(classical.len() as u32).to_be_bytes());
+    out.extend_from_slice(&classical);
+    out.extend_from_slice(&(pq.len() as u32).to_be_bytes());
+    out.extend_from_slice(&pq);
+    out
+}
+
+fn encode_classical(instruction: &Instruction) -> Vec<u8> {
     let mut out = Vec::with_capacity(512);
     out.extend_from_slice(MAGIC);
     let version = match (&instruction.ranges, &instruction.quote_binding) {
@@ -270,6 +292,28 @@ pub fn decode(bytes: &[u8]) -> Result<Instruction, WireError> {
         return Err(WireError::NotAnInstruction);
     }
     let version = r.u16("version")?;
+    if version == HYBRID_VERSION {
+        let length = r.u32("classical instruction length")? as usize;
+        if length > 1 << 20 {
+            return Err(WireError::BadSignature);
+        }
+        let body = r.take(length, "classical instruction")?;
+        // Bound recursion before parsing the inner compatibility format.
+        let inner_version = body.get(8..10).ok_or(WireError::BadSignature)?;
+        if inner_version != LEGACY_VERSION.to_be_bytes() && inner_version != VERSION.to_be_bytes() {
+            return Err(WireError::BadSignature);
+        }
+        let mut instruction = decode(body)?;
+        let pq_length = r.u32("PQ approval length")? as usize;
+        let approval =
+            zkfmi_crypto::quorum::QuorumApproval::decode(r.take(pq_length, "PQ approval")?)
+                .map_err(|_| WireError::BadSignature)?;
+        if r.at != bytes.len() {
+            return Err(WireError::Trailing(bytes.len() - r.at));
+        }
+        instruction.pq_approval = Some(approval);
+        return Ok(instruction);
+    }
     if version != LEGACY_VERSION && version != VERSION {
         return Err(WireError::UnknownVersion(version));
     }
@@ -330,6 +374,7 @@ pub fn decode(bytes: &[u8]) -> Result<Instruction, WireError> {
         nonce,
         quote_binding,
         signature,
+        pq_approval: None,
     })
 }
 
@@ -366,7 +411,11 @@ pub fn hex(bytes: &[u8]) -> String {
 /// constants.
 pub fn spec() -> String {
     let mut out = String::new();
-    out.push_str("# zkPI on the wire, version 2\n\n");
+    out.push_str("# zkPI on the wire, version 3\n\n");
+    out.push_str("Hybrid instructions require both the classical signature and the ML-DSA-65 quorum approval under the venue's enrolled committee. The wire contains no self-authorizing PQ policy. The verifier checks node/key identity, generation, committee epoch, validity and distinct signers before consuming the payment nullifier.\n\n");
+    out.push_str("| outer field | bytes | meaning |\n| --- | ---: | --- |\n| magic | 8 | QOMMZKPI |\n| version | 2 | 3 |\n| classical body length | 4 | at most 1 MiB |\n| classical body | that many | complete canonical version 1 or 2; nested version 3 is forbidden |\n| PQ approval length | 4 | at most 1 MiB |\n| PQ approval | that many | canonical ZKPQQRM1 envelope |\n\n");
+    out.push_str("The ZKPQQRM1 approval contains magic (8), format version (u16), suite ID/version (u16 each), committee epoch (u64), committee SHA-256 (32), and signer count (u16, 1..64). Each signer contains node ID (u16), key-ID byte length (u32, 1..256), UTF-8 key ID, key generation (u32) and exactly 3309 ML-DSA-65 signature bytes. All integers are big-endian. Signers must be strictly increasing and unique; unknown versions/suites, truncated data and trailing bytes are refused.\n\n");
+    out.push_str("Typed zkPI version 2 carries a hybrid payment body and appends a length-prefixed PQ approval to the existing context and classical typed authorization. Both approvals must use the registered committee. Classical typed version 1 cannot carry a hybrid base payment.\n\n## Version 2 classical body\n\n");
     out.push_str(
         "Big-endian throughout. Every field is fixed-width or \
 length-prefixed, and the order below is the order on the wire. Nothing is \
