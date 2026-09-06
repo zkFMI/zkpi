@@ -9,16 +9,16 @@ license = "MIT"
 
 [workspace.dependencies]
 zkfmi-crypto = { path = "../../zkfmi-crypto" }
-deccp-core = { git = "https://github.com/shukob/deccp.git", rev = "b2dc95bb01d3fc50c96249962f5ea8344a857d6d" }
-dekyx-core = { git = "https://github.com/shukob/dekyx.git", rev = "af06561a2075f7e449a24c3bfe8e2e0a1a5df5e5" }
-qomm-avalanche-vm = { git = "https://github.com/shukob/defmi.git", rev = "d8a54fa89676d7ca993c8683658e5dcdb37788c2" }
-zkpi-defmi-sdk = { git = "https://github.com/shukob/defmi.git", rev = "d8a54fa89676d7ca993c8683658e5dcdb37788c2" }
-qomm-defmi = { git = "https://github.com/shukob/defmi.git", rev = "d8a54fa89676d7ca993c8683658e5dcdb37788c2" }
-qomm-audit = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
-qomm-transport = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
-qomm-mpc = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
-qomm-sim = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
-qomm-law = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
+deccp-core = { git = "https://github.com/zkFMI/deccp.git", rev = "b51759c42647a429cb899222029fc604fcf6f113" }
+dekyx-core = { git = "https://github.com/zkFMI/dekyx.git", rev = "88a68b35fec4ec4ae332731bc2eae92fcf9aa30c" }
+qomm-avalanche-vm = { git = "https://github.com/zkFMI/defmi.git", rev = "39e61b094460d92b3c7e51f1dc67251b85c0f8d3" }
+zkpi-defmi-sdk = { git = "https://github.com/zkFMI/defmi.git", rev = "39e61b094460d92b3c7e51f1dc67251b85c0f8d3" }
+qomm-defmi = { git = "https://github.com/zkFMI/defmi.git", rev = "39e61b094460d92b3c7e51f1dc67251b85c0f8d3" }
+qomm-audit = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
+qomm-transport = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
+qomm-mpc = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
+qomm-sim = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
+qomm-law = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
 # Audited by Quarkslab (2019, commissioned by Tari Labs, 30 man-days) together
 # with subtle and bulletproofs. 4.1.3 is the first release carrying the fix for
 # RUSTSEC-2024-0344, a timing leak LLVM introduced into Scalar::sub, so the
@@ -47,11 +47,11 @@ libc = "0.2"
 qomm-zk = { path = "qomm-zk" }
 qomm-zkpi = { path = "qomm-zkpi" }
 qomm-proofs = { path = "qomm-proofs" }
-qomm-dsl = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
-qomm-measure = { git = "https://github.com/shukob/qomm.git", rev = "26026b5807ce6bd093e363ddc8e71b53b084cb19" }
+qomm-dsl = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
+qomm-measure = { git = "https://github.com/zkFMI/qomm.git", rev = "efde6fdc4946bdef2c21c6e66563560e801cbbee" }
 
 # Unpublished integration overlay; see zkfmi-crypto/docs/INTEGRATION_SOURCES.json.
-[patch."https://github.com/shukob/qomm.git"]
+[patch."https://github.com/zkFMI/qomm.git"]
 qomm-dsl = { path = "../../qomm/rust/qomm-dsl" }
 qomm-law = { path = "../../qomm/rust/qomm-law" }
 qomm-sim = { path = "../../qomm/rust/qomm-sim" }
@@ -61,21 +61,21 @@ qomm-audit = { path = "../../qomm/rust/qomm-audit" }
 qomm-measure = { path = "../../qomm/rust/qomm-measure" }
 
 # Unpublished integration overlay; see zkfmi-crypto/docs/INTEGRATION_SOURCES.json.
-[patch."https://github.com/shukob/zkpi.git"]
+[patch."https://github.com/zkFMI/zkpi.git"]
 qomm-proofs = { path = "qomm-proofs" }
 qomm-zk = { path = "qomm-zk" }
 qomm-zkpi = { path = "qomm-zkpi" }
 
 # Unpublished integration overlay; see zkfmi-crypto/docs/INTEGRATION_SOURCES.json.
-[patch."https://github.com/shukob/defmi.git"]
+[patch."https://github.com/zkFMI/defmi.git"]
 qomm-defmi = { path = "../../defmi/rust/qomm-defmi" }
 zkpi-defmi-sdk = { path = "../../defmi/rust/zkpi-defmi-sdk" }
 qomm-avalanche-vm = { path = "../../defmi/rust/qomm-avalanche-vm" }
 
 # Unpublished integration overlay; see zkfmi-crypto/docs/INTEGRATION_SOURCES.json.
-[patch."https://github.com/shukob/dekyx.git"]
+[patch."https://github.com/zkFMI/dekyx.git"]
 dekyx-core = { path = "../../dekyx/crates/dekyx-core" }
 
 # Unpublished integration overlay; see zkfmi-crypto/docs/INTEGRATION_SOURCES.json.
-[patch."https://github.com/shukob/deccp.git"]
+[patch."https://github.com/zkFMI/deccp.git"]
 deccp-core = { path = "../../deccp/crates/deccp-core" }
