@@ -36,5 +36,5 @@ libc = "0.2"
 qomm-zk = { path = "qomm-zk" }
 qomm-zkpi = { path = "qomm-zkpi" }
 qomm-proofs = { path = "qomm-proofs" }
-qomm-dsl = { git = "https://github.com/shukob/qomm" }
+qomm-dsl = { git = "https://github.com/zkFMI/qomm" }
 qomm-measure = { path = "qomm-measure" }

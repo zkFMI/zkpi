@@ -516,7 +516,7 @@ dependencies = [
 [[package]]
 name = "qomm-dsl"
 version = "0.1.0"
-source = "git+https://github.com/shukob/qomm#972396e61c46b602059a62c25be2ee4779889221"
+source = "git+https://github.com/zkFMI/qomm#972396e61c46b602059a62c25be2ee4779889221"
 dependencies = [
  "sha2",
 ]
