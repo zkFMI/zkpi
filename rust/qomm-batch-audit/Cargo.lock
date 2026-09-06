@@ -4383,7 +4383,7 @@ dependencies = [
 [[package]]
 name = "zkfmi-crypto"
 version = "0.1.0"
-source = "git+https://github.com/shukob/zkfmi-crypto.git?rev=713e842a7e298e6224297b03df9d6ade19148bb2#713e842a7e298e6224297b03df9d6ade19148bb2"
+source = "git+https://github.com/zkFMI/zkfmi-crypto.git?rev=26ebfe96563a05c3379219f7fdacea137ab5fb4f#26ebfe96563a05c3379219f7fdacea137ab5fb4f"
 dependencies = [
  "aes",
  "aes-gcm",

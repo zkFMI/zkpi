@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [workspace]
 
 [dependencies]
-zkfmi-crypto = { git = "https://github.com/shukob/zkfmi-crypto.git", rev = "713e842a7e298e6224297b03df9d6ade19148bb2" }
+zkfmi-crypto = { git = "https://github.com/zkFMI/zkfmi-crypto.git", rev = "26ebfe96563a05c3379219f7fdacea137ab5fb4f" }
 miden-core = "=0.32.0"
 miden-vm = { version = "=0.32.0", features = ["concurrent"] }
 serde = { version = "1", features = ["derive"] }

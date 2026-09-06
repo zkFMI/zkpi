@@ -125,7 +125,7 @@ to real machines is not published.
 
 ## Depends on
 
-- [qomm](https://github.com/shukob/qomm)
+- [qomm](https://github.com/zkFMI/qomm)
 
 Cargo resolves these repositories from the checked-in lock file.
 

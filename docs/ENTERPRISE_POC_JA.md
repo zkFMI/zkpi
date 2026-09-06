@@ -37,7 +37,7 @@ DeFMIなどの決済先が正本状態として実装する必要がある。
 ## 1. ソースと基準試験を固定する
 
 ```sh
-git clone https://github.com/shukob/zkpi.git
+git clone https://github.com/zkFMI/zkpi.git
 cd zkpi
 git checkout <社内で承認したcommit>
 git rev-parse HEAD
@@ -173,7 +173,7 @@ PoC用 `--self-test` の成功は、本番鍵や本番決済の安全性を保�
 
 この `zkpi` リポジトリが提供するのは、決済指図のライブラリ、正規のバイト形式、独立検証用
 CLIである。DeFMI接続用 `zkpi-defmi-sdk` は
-[DeFMIリポジトリ](https://github.com/shukob/defmi) で配布され、`qomm-transport` と
+[DeFMIリポジトリ](https://github.com/zkFMI/defmi) で配布され、`qomm-transport` と
 `qomm-defmi` に依存する。銀行の勘定系や取引所へそのまま公開する完成済みAPIサーバーではない。
 PoCでは、次の境界を最初に固定する。
 
