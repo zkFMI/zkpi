@@ -112,11 +112,16 @@ const MAX_WIRE_BYTES: usize = 1 << 20;
 const MAX_REQUEST_BYTES: usize = 8 << 20;
 const MAX_RESPONSE_BYTES: usize = 8 << 20;
 const MAX_PROOF_STATE_BYTES: usize = 32 << 20;
-const FROST_IDENTITY_DOMAIN: &[u8] = b"QOMM:FROST:PEER-IDENTITY:v2";
-const FROST_MANIFEST_DOMAIN: &[u8] = b"QOMM:FROST:PEER-MANIFEST:v2";
-const FROST_CONFIRM_DOMAIN: &[u8] = b"QOMM:FROST:PEER-CONFIRM:v2";
+const FROST_IDENTITY_DOMAIN: &[u8] = b"QOMM:FROST:PEER-IDENTITY:v3";
+const FROST_MANIFEST_DOMAIN: &[u8] = b"QOMM:FROST:PEER-MANIFEST:v3";
+const FROST_CONFIRM_DOMAIN: &[u8] = b"QOMM:FROST:PEER-CONFIRM:v3";
+/// Ed25519 (32) ‖ ML-DSA-65 (1952) hybrid publication/application public key.
+pub const FROST_PUBLICATION_PUBLIC_BYTES: usize = 32 + 1952;
 const FROST_EXCHANGE_DOMAIN: &[u8] = b"QOMM:FROST:DKG-EXCHANGE:v2";
 const PROOF_STATE_MAGIC: &[u8; 8] = b"QOMMPS01";
+/// v7: persisted FROST peer manifests carry each peer's publication key under
+/// the v3 identity domains.  Older state fails startup explicitly.
+const PROOF_STATE_VERSION: u8 = 7;
 const PROOF_STATE_AAD: &[u8] = b"QOMM:PROOF-PARTY-STATE:v1";
 const PROOF_STATE_SALT_BYTES: usize = 16;
 const PROOF_STATE_NONCE_BYTES: usize = 12;
@@ -628,15 +633,17 @@ impl ProofStateStore {
         )?;
         let value: Value = serde_json::from_slice(&clear)
             .map_err(|_| "proof-party state authentication failed".to_string())?;
-        if value.get("version").and_then(Value::as_u64) != Some(6) {
+        if value.get("version").and_then(Value::as_u64)
+            != Some(u64::from(PROOF_STATE_VERSION))
+        {
             return Err(
-                "proof state requires explicit hybrid-key migration; legacy state was preserved"
+                "proof state requires explicit schema migration; legacy state was preserved"
                     .into(),
             );
         }
         let state: DurableProofState = serde_json::from_value(value)
             .map_err(|_| "proof-party state schema is invalid".to_string())?;
-        if state.version != 6 {
+        if state.version != PROOF_STATE_VERSION {
             return Err(
                 "unsupported proof-party state version; securely reprovision this non-production node"
                     .into(),
@@ -744,15 +751,105 @@ struct ProofJob {
     opening_shares: BTreeMap<String, Value>,
 }
 
+/// One node's self-signed FROST identity as emitted by `frost_identity` and
+/// consumed by `frost_configure_peers`.  Both self-signatures (Ed25519 and
+/// ML-DSA-65) cover the v3 identity body, which binds the hybrid publication
+/// key alongside the exchange and PQ settlement keys.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-struct FrostPeerEntry {
-    party: u16,
-    identity_public: String,
-    exchange_suite: Suite,
-    exchange_public: String,
-    self_signature: String,
-    pq_key: KeyRecord,
-    pq_self_signature: String,
+pub struct FrostPeerEntry {
+    pub party: u16,
+    pub identity_public: String,
+    /// Hex of the 1984-byte hybrid publication/application public key.
+    pub publication_public: String,
+    pub exchange_suite: Suite,
+    pub exchange_public: String,
+    pub self_signature: String,
+    pub pq_key: KeyRecord,
+    pub pq_self_signature: String,
+}
+
+/// Decoded contents of a [`FrostPeerEntry`] whose Ed25519 and ML-DSA-65
+/// self-signatures verified over the v3 identity body for one session.
+#[derive(Debug)]
+pub struct VerifiedPeerIdentity {
+    pub identity: VerifyingKey,
+    pub exchange: WinnerPublicKey,
+    pub identity_raw: [u8; 32],
+    pub exchange_raw: Vec<u8>,
+    pub publication_public: Vec<u8>,
+    pub signature: [u8; 64],
+    pub pq_signature: Vec<u8>,
+}
+
+/// Verifies one peer's self-signed FROST identity for `session`: both the
+/// Ed25519 and the ML-DSA-65 self-signature must cover the v3 identity body,
+/// which includes the node's hybrid publication key.  Structural checks
+/// (canonical identity key, hybrid KEM suite, settlement PQ key, 1984-byte
+/// publication key) fail before any signature is examined.  Temporal validity
+/// of the PQ key record is the caller's concern.
+pub fn verify_peer_identity(
+    entry: &FrostPeerEntry,
+    session: &[u8; 32],
+) -> Result<VerifiedPeerIdentity, String> {
+    let identity_raw: [u8; 32] = hex::decode(&entry.identity_public)
+        .map_err(|_| "FROST identity key is malformed")?
+        .try_into()
+        .map_err(|_| "FROST identity key is malformed")?;
+    if entry.exchange_suite != KEM_SUITE {
+        return Err("FROST peers require hybrid KEM keys".into());
+    }
+    let exchange_raw =
+        hex::decode(&entry.exchange_public).map_err(|_| "FROST exchange key is malformed")?;
+    let exchange = WinnerPublicKey::from_raw(&exchange_raw)?;
+    let publication_public = hex::decode(&entry.publication_public)
+        .map_err(|_| "FROST publication key is malformed")?;
+    if publication_public.len() != FROST_PUBLICATION_PUBLIC_BYTES {
+        return Err("FROST publication key must be a 1984-byte hybrid public key".into());
+    }
+    let signature: [u8; 64] = hex::decode(&entry.self_signature)
+        .map_err(|_| "FROST peer self-signature is malformed")?
+        .try_into()
+        .map_err(|_| "FROST peer self-signature is malformed")?;
+    let identity = VerifyingKey::from_bytes(&identity_raw)
+        .map_err(|_| "FROST identity key is not canonical")?;
+    if entry.pq_key.suite != zkfmi_crypto::quorum::SUITE
+        || entry.pq_key.purpose != KeyPurpose::SettlementInstruction
+    {
+        return Err("FROST peer lacks a settlement PQ key".into());
+    }
+    let pq_signature = BASE64
+        .decode(&entry.pq_self_signature)
+        .map_err(|_| "PQ peer self-signature is malformed")?;
+    let body = ProofParty::identity_body(
+        session,
+        entry.party,
+        &identity_raw,
+        &exchange_raw,
+        &entry.pq_key,
+        &publication_public,
+    );
+    identity
+        .verify(&body, &Signature::from_bytes(&signature))
+        .map_err(|_| {
+            "FROST exchange and publication keys lack their node identity signature"
+        })?;
+    MlDsa65Verifier
+        .verify(
+            KeyPurpose::Transport,
+            &entry.pq_key.public_key,
+            &body,
+            &pq_signature,
+        )
+        .map_err(|_| "PQ peer self-signature is invalid")?;
+    Ok(VerifiedPeerIdentity {
+        identity,
+        exchange,
+        identity_raw,
+        exchange_raw,
+        publication_public,
+        signature,
+        pq_signature,
+    })
 }
 
 struct FrostPeer {
@@ -866,7 +963,7 @@ impl ProofParty {
             let pq_key =
                 pqc::initial_record(&identity, MlDsa65Signer::from_seed(&pq_seed).public_key())?;
             let state = DurableProofState {
-                version: 6,
+                version: PROOF_STATE_VERSION,
                 generation: 0,
                 proof_configuration_digest: hex::encode(config.security_digest()),
                 node: config.node,
@@ -1401,7 +1498,7 @@ impl ProofParty {
         let encode_set =
             |values: &BTreeSet<[u8; 32]>| values.iter().map(hex::encode).collect::<Vec<_>>();
         Ok(DurableProofState {
-            version: 6,
+            version: PROOF_STATE_VERSION,
             generation,
             proof_configuration_digest: hex::encode(self.config.security_digest()),
             node: self.config.node,
@@ -1891,12 +1988,16 @@ impl ProofParty {
         Ok(authorized.message)
     }
 
+    /// v3 identity body: domain ‖ session ‖ party ‖ Ed25519 identity ‖ KEM
+    /// suite ‖ exchange public ‖ serde(pq_key) ‖ len(u16 BE) ‖ publication
+    /// public.  Both self-signatures cover exactly these bytes.
     fn identity_body(
         session: &[u8; 32],
         party: u16,
         identity: &[u8; 32],
         exchange: &[u8],
         pq_key: &KeyRecord,
+        publication: &[u8],
     ) -> Vec<u8> {
         [
             FROST_IDENTITY_DOMAIN,
@@ -1906,6 +2007,8 @@ impl ProofParty {
             &KEM_SUITE.encode(),
             exchange,
             &serde_json::to_vec(pq_key).expect("public key record serializes"),
+            &(publication.len() as u16).to_be_bytes(),
+            publication,
         ]
         .concat()
     }
@@ -2013,74 +2116,29 @@ impl ProofParty {
             if entry.party as usize != index + 1 {
                 return Err("FROST peer manifest parties must be contiguous and one-based".into());
             }
-            let identity_raw: [u8; 32] = hex::decode(&entry.identity_public)
-                .map_err(|_| "FROST identity key is malformed")?
-                .try_into()
-                .map_err(|_| "FROST identity key is malformed")?;
-            if entry.exchange_suite != KEM_SUITE {
-                return Err("FROST peers require hybrid KEM keys".into());
-            }
-            let exchange_raw = hex::decode(&entry.exchange_public)
-                .map_err(|_| "FROST exchange key is malformed")?;
-            let exchange = WinnerPublicKey::from_raw(&exchange_raw)?;
-            let signature_raw: [u8; 64] = hex::decode(&entry.self_signature)
-                .map_err(|_| "FROST peer self-signature is malformed")?
-                .try_into()
-                .map_err(|_| "FROST peer self-signature is malformed")?;
-            let identity = VerifyingKey::from_bytes(&identity_raw)
-                .map_err(|_| "FROST identity key is not canonical")?;
-            identity
-                .verify(
-                    &Self::identity_body(
-                        &session,
-                        entry.party,
-                        &identity_raw,
-                        &exchange_raw,
-                        &entry.pq_key,
-                    ),
-                    &Signature::from_bytes(&signature_raw),
-                )
-                .map_err(|_| "FROST exchange key lacks its node identity signature")?;
+            // Both self-signatures cover the v3 identity body, which binds the
+            // publication key; an absent or mis-sized key fails here.
+            let verified = verify_peer_identity(entry, &session)?;
             entry
                 .pq_key
                 .valid_at(pqc::now()?)
                 .map_err(|error| error.to_string())?;
-            if entry.pq_key.suite != zkfmi_crypto::quorum::SUITE
-                || entry.pq_key.purpose != KeyPurpose::SettlementInstruction
-            {
-                return Err("FROST peer lacks a settlement PQ key".into());
-            }
-            let pq_signature = BASE64
-                .decode(&entry.pq_self_signature)
-                .map_err(|_| "PQ peer self-signature is malformed")?;
-            MlDsa65Verifier
-                .verify(
-                    KeyPurpose::Transport,
-                    &entry.pq_key.public_key,
-                    &Self::identity_body(
-                        &session,
-                        entry.party,
-                        &identity_raw,
-                        &exchange_raw,
-                        &entry.pq_key,
-                    ),
-                    &pq_signature,
-                )
-                .map_err(|_| "PQ peer self-signature is invalid")?;
             body.extend_from_slice(
                 &serde_json::to_vec(&entry.pq_key).map_err(|error| error.to_string())?,
             );
-            body.extend_from_slice(&pq_signature);
+            body.extend_from_slice(&verified.pq_signature);
             body.extend_from_slice(&entry.party.to_be_bytes());
-            body.extend_from_slice(&identity_raw);
+            body.extend_from_slice(&verified.identity_raw);
             body.extend_from_slice(&entry.exchange_suite.encode());
-            body.extend_from_slice(&exchange_raw);
-            body.extend_from_slice(&signature_raw);
+            body.extend_from_slice(&verified.exchange_raw);
+            body.extend_from_slice(&(verified.publication_public.len() as u16).to_be_bytes());
+            body.extend_from_slice(&verified.publication_public);
+            body.extend_from_slice(&verified.signature);
             peers.insert(
                 entry.party,
                 FrostPeer {
-                    identity,
-                    exchange,
+                    identity: verified.identity,
+                    exchange: verified.exchange,
                     pq_key: entry.pq_key.clone(),
                 },
             );
@@ -2091,10 +2149,15 @@ impl ProofParty {
             .ok_or_else(|| "FROST manifest omits this node".to_string())?;
         if own.party != own_party
             || own.identity_public != hex::encode(self.identity.verifying_key().to_bytes())
+            || own.publication_public
+                != hex::encode(self.application_identity.hybrid_public_key())
             || own.exchange_public != hex::encode(self.exchange.public_key()?.raw_public_key()?)
             || own.pq_key != self.pq_key
         {
-            return Err("FROST manifest substituted this node's identity or exchange key".into());
+            return Err(
+                "FROST manifest substituted this node's identity, publication or exchange key"
+                    .into(),
+            );
         }
         Ok(PendingPeers {
             session,
@@ -2230,19 +2293,21 @@ impl ProofParty {
                 let party = self.config.node + 1;
                 let identity_public = self.identity.verifying_key().to_bytes();
                 let exchange_public = self.exchange.public_key()?.raw_public_key()?;
+                let publication_public = self.application_identity.hybrid_public_key();
                 let body = Self::identity_body(
                     &session,
                     party,
                     &identity_public,
                     &exchange_public,
                     &self.pq_key,
+                    &publication_public,
                 );
                 let signature = self.identity.sign(&body);
                 let pq_signature = self.pq_identity_signature(&body)?;
                 Ok(json!({
                     "party": party,
                     "identity_public": hex::encode(identity_public),
-                    "publication_public": hex::encode(self.application_identity.hybrid_public_key()),
+                    "publication_public": hex::encode(publication_public),
                     "exchange_suite": KEM_SUITE,
                     "exchange_public": hex::encode(exchange_public),
                     "self_signature": hex::encode(signature.to_bytes()),

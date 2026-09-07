@@ -318,7 +318,7 @@ fn control_history_is_required_by_the_new_durable_schema() {
         .unwrap()
         .remove("application_controls");
     assert!(serde_json::from_value::<DurableProofState>(value).is_err());
-    assert_eq!(state.version, 6);
+    assert_eq!(state.version, 7);
 }
 
 #[test]
@@ -333,6 +333,6 @@ fn classical_proof_state_is_preserved_and_requires_explicit_migration() {
     let before = fs::read(&state_path).unwrap();
     drop(party);
     let error = ProofParty::new(config(root.path())).err().unwrap();
-    assert!(error.contains("explicit hybrid-key migration"));
+    assert!(error.contains("explicit schema migration"));
     assert_eq!(fs::read(state_path).unwrap(), before);
 }

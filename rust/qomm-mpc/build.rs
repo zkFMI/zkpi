@@ -20,6 +20,8 @@
 //! unlikely.
 use std::path::{Path, PathBuf};
 use std::process::Command;
+// The build script needs only `verify`; the runtime pin API is unused here.
+#[allow(dead_code)]
 #[path = "src/engine_policy.rs"]
 mod engine_policy;
 

@@ -37,7 +37,7 @@ pub struct WinnerSenderAuth<'a> {
 #[derive(Clone)]
 pub struct WinnerPrivateKey(Arc<HybridKemKey>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WinnerPublicKey(Vec<u8>);
 
 impl WinnerPrivateKey {

@@ -386,3 +386,80 @@ fn hybrid_dkg_envelopes_reject_downgrade_and_sender_substitution_before_commit()
     finalize_frost_dkg(&mut parties, &plan).unwrap();
     assert_ready(&mut parties);
 }
+
+#[test]
+fn peer_identities_bind_the_publication_key_under_both_self_signatures() {
+    use qomm_transport::proof_party::{verify_peer_identity, FrostPeerEntry};
+    let root = TempDir::new().unwrap();
+    let mut parties = (0_u16..7)
+        .map(|node| LocalParty::new(node, root.path()))
+        .collect::<Vec<_>>();
+    let session = [0x61; 32];
+    let identities = parties
+        .iter_mut()
+        .map(|party| {
+            party
+                .call("frost_identity", json!({"session": hex::encode(session)}))
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let configure = |party: &mut LocalParty, entries: Vec<Value>| {
+        party.call(
+            "frost_configure_peers",
+            json!({"session": hex::encode(session), "entries": Value::Array(entries)}),
+        )
+    };
+
+    // The harness path: every emitted identity verifies as-is for its session,
+    // and the verified publication key is the one the node advertised.
+    for (node, identity) in identities.iter().enumerate() {
+        let entry: FrostPeerEntry = serde_json::from_value(identity.clone()).unwrap();
+        assert_eq!(entry.party as usize, node + 1);
+        let verified = verify_peer_identity(&entry, &session).unwrap();
+        assert_eq!(verified.publication_public.len(), 1984);
+        assert_eq!(
+            hex::encode(&verified.publication_public),
+            entry.publication_public
+        );
+        assert!(verify_peer_identity(&entry, &[0x62; 32]).is_err());
+    }
+
+    // Another node's publication key has the right width, but it breaks both
+    // self-signatures; the manifest refuses the entry before confirmation.
+    let mut swapped = identities.clone();
+    swapped[1]["publication_public"] = identities[2]["publication_public"].clone();
+    let entry: FrostPeerEntry = serde_json::from_value(swapped[1].clone()).unwrap();
+    assert!(verify_peer_identity(&entry, &session)
+        .unwrap_err()
+        .contains("identity signature"));
+    assert!(configure(&mut parties[0], swapped)
+        .unwrap_err()
+        .contains("identity signature"));
+
+    // A publication key of the wrong width never reaches signature checks.
+    let mut narrow = identities.clone();
+    narrow[3]["publication_public"] = json!(hex::encode([7_u8; 32]));
+    let entry: FrostPeerEntry = serde_json::from_value(narrow[3].clone()).unwrap();
+    assert!(verify_peer_identity(&entry, &session)
+        .unwrap_err()
+        .contains("1984-byte"));
+    assert!(configure(&mut parties[0], narrow)
+        .unwrap_err()
+        .contains("1984-byte"));
+
+    // An entry without the field is not a v3 peer entry at all.
+    let mut absent = identities.clone();
+    absent[4].as_object_mut().unwrap().remove("publication_public");
+    assert!(serde_json::from_value::<FrostPeerEntry>(absent[4].clone()).is_err());
+    assert!(configure(&mut parties[0], absent)
+        .unwrap_err()
+        .contains("malformed"));
+
+    // None of the rejected manifests left the node bound to a session; the
+    // unmodified identities still configure and confirm.
+    assert_eq!(
+        parties[0].call("frost_status", json!({})).unwrap()["stage"],
+        "fresh"
+    );
+    configure_and_confirm(&mut parties, session);
+}
