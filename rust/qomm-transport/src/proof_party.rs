@@ -302,10 +302,13 @@ impl ProofPartyConfig {
                 "complete quote proofs need at least three eligibility witness bits".into(),
             );
         }
+        // The trusted receipt key is the 32-byte fingerprint of the DeFMI
+        // authority's hybrid application key, not an Ed25519 point; checking
+        // it as a point refused about half of all valid fingerprints.
         if self
             .trusted_defmi_receipt_public
             .as_ref()
-            .is_some_and(|key| VerifyingKey::from_bytes(key).is_err())
+            .is_some_and(|key| crate::application_crypto::VerifyingKey::from_bytes(key).is_err())
         {
             return Err("proof-party DeFMI receipt key is malformed".into());
         }

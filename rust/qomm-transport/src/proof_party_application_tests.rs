@@ -336,3 +336,29 @@ fn classical_proof_state_is_preserved_and_requires_explicit_migration() {
     assert!(error.contains("explicit schema migration"));
     assert_eq!(fs::read(state_path).unwrap(), before);
 }
+
+#[test]
+fn a_hybrid_receipt_fingerprint_that_is_not_an_ed25519_point_is_accepted() {
+    // Find a fingerprint of a real hybrid application key that the classical
+    // decoder rejects; the validation used to apply that decoder by mistake.
+    let mut seed = [0_u8; 64];
+    let fingerprint = (1_u8..=200)
+        .map(|i| {
+            seed.fill(i);
+            crate::application_crypto::SigningKey::from_bytes(&seed)
+                .verifying_key()
+                .to_bytes()
+        })
+        .find(|fingerprint| ed25519_dalek::VerifyingKey::from_bytes(fingerprint).is_err())
+        .expect("some fingerprint is not a curve point");
+    let directory = TempDir::new().unwrap();
+    let mut configuration = config(directory.path());
+    configuration.trusted_defmi_receipt_public = Some(fingerprint);
+    assert!(configuration.validate().is_ok());
+    configuration.trusted_defmi_receipt_public = Some([0; 32]);
+    assert_eq!(
+        configuration.validate().unwrap_err(),
+        "proof-party DeFMI receipt key is malformed"
+    );
+}
+
