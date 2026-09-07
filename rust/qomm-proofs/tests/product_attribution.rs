@@ -10,8 +10,8 @@ use qomm_proofs::threshold_gadgets::{
 };
 use qomm_proofs::threshold_range::deal_bits;
 use qomm_proofs::threshold_sigma::{share_commitment, PartyId};
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_product;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_product;
 use rand_core::OsRng;
 
 const PARTIES: [PartyId; 7] = [1, 2, 3, 4, 5, 6, 7];

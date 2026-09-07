@@ -39,7 +39,7 @@ use qomm_proofs::kyb::{
     cohort_id, present, verify_presentation, BusinessAttributes, KybIssuer, KybPresentation,
     SignedCohortRegistry,
 };
-use qomm_zk::or_dleq::Proof;
+use zkfmi_zk::or_dleq::Proof;
 use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

@@ -261,7 +261,7 @@ impl OpeningEnvelope {
 mod tests {
     use super::*;
     use crate::threshold_sigma::deal;
-    use qomm_zk::pedersen::Pedersen;
+    use zkfmi_zk::pedersen::Pedersen;
     use rand_core::OsRng;
 
     #[test]

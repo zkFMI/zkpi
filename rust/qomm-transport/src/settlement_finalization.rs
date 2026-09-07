@@ -6,8 +6,8 @@
 
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
-use qomm_zkpi::typed::ExecutionContext;
-use qomm_zkpi::typed_wire;
+use zkpi::typed::ExecutionContext;
+use zkpi::typed_wire;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};

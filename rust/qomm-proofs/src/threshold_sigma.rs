@@ -1,9 +1,9 @@
-//! Threshold assembly for the native `qomm-zk` opening sigma protocol.
+//! Threshold assembly for the native `zkfmi-zk` opening sigma protocol.
 //!
 //! A sigma response is affine in its witness. Each node therefore forms
 //! `z_i = k_i + c w_i` from only its Shamir shares, and a quorum interpolates
 //! those responses at zero. First-move commitments interpolate in the exponent.
-//! The resulting [`OpeningProof`] is the ordinary `qomm-zk` proof object; its
+//! The resulting [`OpeningProof`] is the ordinary `zkfmi-zk` proof object; its
 //! verifier neither knows nor trusts the assembling quorum.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,9 +12,9 @@ use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use merlin::Transcript;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::shamir;
-use qomm_zk::sigma::{opening_challenge, verify_opening, verify_zero_opening, OpeningProof};
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::shamir;
+use zkfmi_zk::sigma::{opening_challenge, verify_opening, verify_zero_opening, OpeningProof};
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 
@@ -29,7 +29,7 @@ use crate::threshold_gadgets::{joint_scalar_nodes, DealerCoefficientCommitments}
 /// openings. In the zero relation every node's nonce has no value component,
 /// so the assembled response's value part is `c * sum lambda_i v_i`, which is
 /// zero exactly when the statement holds, and the verifier is
-/// `qomm_zk::sigma::verify_zero_opening`, which rejects any other response.
+/// `zkfmi_zk::sigma::verify_zero_opening`, which rejects any other response.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Relation {
     General,
@@ -89,7 +89,7 @@ pub(crate) fn share_scalar<R: RngCore + CryptoRng>(
 
 /// Lagrange coefficients that reconstruct a Shamir polynomial at zero.
 ///
-/// The interpolation itself stays in `qomm-zk::shamir`: each coefficient is
+/// The interpolation itself stays in `zkfmi-zk::shamir`: each coefficient is
 /// obtained by reconstructing a unit vector over the requested points.
 pub fn lagrange_at_zero(parties: &[PartyId]) -> Result<BTreeMap<PartyId, Scalar>, String> {
     let points = checked_parties(parties)?;
@@ -527,7 +527,7 @@ pub fn make_opening_challenge_with_transcript(
 }
 
 /// The zero-relation challenge: the transcript is framed exactly as
-/// `qomm_zk::sigma::verify_zero_opening` frames it.
+/// `zkfmi_zk::sigma::verify_zero_opening` frames it.
 pub fn make_zero_opening_challenge_with_transcript(
     commitment: &RistrettoPoint,
     messages: &[OpeningRound1],
@@ -730,7 +730,7 @@ pub fn joint_prove_opening<R: RngCore + CryptoRng>(
 }
 
 /// Assemble a proof that the shared commitment is a pure power of `h`, verified
-/// by `qomm_zk::sigma::verify_zero_opening`. The reconciliation against a
+/// by `zkfmi_zk::sigma::verify_zero_opening`. The reconciliation against a
 /// register is proved this way.
 pub fn joint_prove_zero_opening<R: RngCore + CryptoRng>(
     key: &Pedersen,

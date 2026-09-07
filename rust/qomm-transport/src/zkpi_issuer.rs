@@ -17,8 +17,8 @@ use qomm_proofs::threshold_range::{
     RangeStatement, ThresholdRangeProof,
 };
 use qomm_proofs::threshold_sigma::PartyId;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zkpi::{Bounds, PartialInstruction, AMOUNT_RANGE_CONTEXT, PRICE_RANGE_CONTEXT};
+use zkfmi_zk::pedersen::Pedersen;
+use zkpi::{Bounds, PartialInstruction, AMOUNT_RANGE_CONTEXT, PRICE_RANGE_CONTEXT};
 use rand_core::{CryptoRng, RngCore};
 use std::collections::BTreeSet;
 

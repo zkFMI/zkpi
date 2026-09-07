@@ -10,7 +10,7 @@ use qomm_transport::node_service::{
     certificate_fingerprint, server_ssl_context, KybPolicy, NodeSealingKeys, NodeStore, Principal,
     RateLimitPolicy, ResidentNodeServer,
 };
-use qomm_zk::or_dleq::Proof;
+use zkfmi_zk::or_dleq::Proof;
 use serde::Deserialize;
 use serde_json::json;
 use std::fs;

@@ -107,9 +107,9 @@ use qomm_transport::zkpi_issuer::{
 use qomm_transport::zkpi_wire::{
     decode as decode_zkpi, encode as encode_zkpi, Envelope as ZkpiEnvelope, Message as ZkpiMessage,
 };
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_product;
-use qomm_zkpi::{
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_product;
+use zkpi::{
     asset_scalar, frost, typed, typed_wire, Bounds, Instruction, PartialInstruction, QuoteBinding,
     Venue, DEFAULT_DOMAIN,
 };
@@ -1435,7 +1435,7 @@ fn authorize_health_signing(
 }
 
 struct LiveProofEvidence {
-    pq_committee: qomm_zkpi::QuorumPolicy,
+    pq_committee: zkpi::QuorumPolicy,
     job_id: [u8; 32],
     lane: usize,
     admission_sequence: u64,
@@ -2232,7 +2232,7 @@ fn prove_persistence_lane(input: PersistenceLaneInput<'_>) -> Result<LiveProofEv
     for party in proof_parties.iter_mut() {
         party.call("complete", json!({"job_id": hex::encode(job_id)}))?;
     }
-    let instruction_digest = Sha256::digest(qomm_zkpi::wire::encode(&instruction)).into();
+    let instruction_digest = Sha256::digest(zkpi::wire::encode(&instruction)).into();
     Ok(LiveProofEvidence {
         pq_committee,
         job_id,
@@ -3698,7 +3698,7 @@ fn finalize_settlement_handoff(
         let message = typed::digest_for(&record.instruction, &context, DEFAULT_DOMAIN)
             .map_err(str::to_string)?;
         let signing_job = frost_signing_job(&message);
-        let payment_wire = qomm_zkpi::wire::encode(&record.instruction);
+        let payment_wire = zkpi::wire::encode(&record.instruction);
         let context_wire = typed_wire::encode_context(&context);
         for party in selected {
             proof_parties[party - 1].call(

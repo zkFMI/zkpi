@@ -5,8 +5,8 @@ use qomm_proofs::threshold_gadgets::{
     prepare_product_round1, product_statement_from_evaluations, LocalProductShares,
 };
 use qomm_proofs::threshold_sigma::deal;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_product;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_product;
 use rand_core::OsRng;
 
 const CONTEXT: &[u8] = b"qomm:test:distributed-product:v1";

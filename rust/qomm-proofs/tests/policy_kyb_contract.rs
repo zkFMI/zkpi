@@ -19,11 +19,11 @@ use qomm_proofs::policy_audit::{
     reconstruct, Invalid as PolicyInvalid, Policy, PolicyAudit, PolicyAuditor, PolicyBounds,
     PolicyCommitter, PolicyShare,
 };
-use qomm_zk::bitrange::{
+use zkfmi_zk::bitrange::{
     prove_bounded, prove_range, shift_commitment, suffixed_context, verify_bounded, BoundedProof,
 };
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::prove_bit;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::prove_bit;
 use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 

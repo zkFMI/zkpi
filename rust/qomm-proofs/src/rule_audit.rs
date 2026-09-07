@@ -16,9 +16,9 @@ use merlin::Transcript;
 use qomm_dsl::interval::{Interval, RuleError};
 use qomm_dsl::parse::{Cmp, Expr};
 use qomm_dsl::rule::Rule;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::range::RangeCtx;
-use qomm_zk::sigma::{
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::range::RangeCtx;
+use zkfmi_zk::sigma::{
     prove_bit, prove_product, prove_zero_opening, verify_bit, verify_product, verify_zero_opening,
     BitProof, OpeningProof, ProductProof,
 };

@@ -9,7 +9,7 @@ use crate::mandate::{Direction, TakerExecutionMandate};
 use crate::mpc_result::fill_mask_scalar_commitment;
 use crate::wire::{share_field_elements, FieldElement, WireError, PAYLOAD_BYTES};
 use curve25519_dalek::scalar::Scalar;
-use qomm_zk::Pedersen;
+use zkfmi_zk::Pedersen;
 use rand_core::{CryptoRng, RngCore};
 
 pub const RESIDENT_RFQ_FIELDS: usize = 14;

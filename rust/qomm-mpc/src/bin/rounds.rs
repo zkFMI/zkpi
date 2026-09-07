@@ -37,7 +37,7 @@
 //! and the protocol; a delay changes when they happen, not how many there are,
 //! and the wall-clock figures that do depend on it are measured elsewhere.
 
-use qomm_measure::{hosts, Summary};
+use zkfmi_measure::{hosts, Summary};
 use qomm_mpc::Protocol;
 use std::collections::BTreeMap;
 use std::io::Write;

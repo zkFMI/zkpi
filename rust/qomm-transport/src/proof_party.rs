@@ -36,9 +36,9 @@ use qomm_proofs::threshold_quote::{
     QuoteRelationStatements, QuoteRound1Secrets,
 };
 use qomm_proofs::threshold_range::verify_threshold_range;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_product;
-use qomm_zkpi::{
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_product;
+use zkpi::{
     frost, typed, typed_wire, wire as payment_wire, Bounds, PartialInstruction, QuoteBinding,
     Venue, DEFAULT_DOMAIN,
 };
@@ -181,7 +181,7 @@ impl ReserveMandate {
 
     fn verify_context(
         &self,
-        payment: &qomm_zkpi::Instruction,
+        payment: &zkpi::Instruction,
         context: &typed::ExecutionContext,
         now: u64,
     ) -> Result<(), String> {

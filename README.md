@@ -55,7 +55,7 @@ flowchart TB
         FROST["frost-ristretto255<br/>threshold signatures"]
     end
 
-    subgraph zk["qomm-zk"]
+    subgraph zk["zkfmi-zk"]
         PED["pedersen<br/>commitments, asset tags"]
         SIG["sigma<br/>opening, cross-generator, product"]
         RNG["range"]
@@ -64,7 +64,7 @@ flowchart TB
         ADP["adaptor<br/>pre-sign, adapt, extract"]
     end
 
-    subgraph pi["qomm-zkpi"]
+    subgraph pi["zkpi"]
         ISS["issuer<br/>KYB credentials"]
         INS["instruction<br/>commit, bound, nullify"]
         QUO["quorum<br/>who signed it"]
@@ -96,13 +96,13 @@ tree.
 
 Rust crates:
 
-- `rust/qomm-zk`
-- `rust/qomm-zkpi`
+- `rust/zkfmi-zk`
+- `rust/zkpi`
 - `rust/qomm-proofs`
-- `rust/qomm-measure`
-- `rust/qomm-harness`
+- `rust/zkfmi-measure`
+- `rust/zkpi-harness`
 
-Measurement binaries carried by `qomm-harness`:
+Measurement binaries carried by `zkpi-harness`:
 
 - `run_quote_proof`
 - `run_state_audit`

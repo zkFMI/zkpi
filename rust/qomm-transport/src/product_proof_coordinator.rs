@@ -69,9 +69,9 @@ use qomm_proofs::threshold_quote::{
     quote_statement_from_evaluations, QuoteChallengeTranscript,
 };
 use qomm_proofs::threshold_range::verify_threshold_range;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_product;
-use qomm_zkpi::{
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_product;
+use zkpi::{
     asset_scalar, frost, typed, typed_wire, Bounds, PartialInstruction, QuoteBinding, Venue,
     DEFAULT_DOMAIN,
 };
@@ -199,7 +199,7 @@ pub fn authorize_standing_pool_allocation<T: ProofPartyRpc>(
     }
     let message = binding.signing_message()?;
     let signing_job = frost_signing_job(&message);
-    let payment = qomm_zkpi::wire::encode(&handoff.instruction);
+    let payment = zkpi::wire::encode(&handoff.instruction);
     let dvp_proofs = encode_dvp_proofs(&handoff.dvp_proofs)?;
     let pool_remainder_range = encode_threshold_range(&handoff.maker_pool_remainder_proof)?;
     let mandate_unsigned = maker_mandate.unsigned()?;
@@ -278,7 +278,7 @@ pub fn complete_product_proof<T: ProofPartyRpc>(
 pub fn finalize_product_settlement<T: ProofPartyRpc>(
     parties: &mut [T],
     handoff: &mut SettlementHandoff,
-    context: qomm_zkpi::typed::ExecutionContext,
+    context: zkpi::typed::ExecutionContext,
     acknowledgement: &PretradeAcknowledgement,
     trusted_defmi: &VerifyingKey,
 ) -> Result<(), String> {
@@ -295,7 +295,7 @@ pub fn finalize_product_settlement<T: ProofPartyRpc>(
     let message = typed::digest_for(&handoff.instruction, &context, DEFAULT_DOMAIN)
         .map_err(str::to_string)?;
     let signing_job = frost_signing_job(&message);
-    let payment_wire = qomm_zkpi::wire::encode(&handoff.instruction);
+    let payment_wire = zkpi::wire::encode(&handoff.instruction);
     let context_wire = typed_wire::encode_context(&context);
     let acknowledgement_wire = encode_ack(acknowledgement)?;
     for party in SIGNING_QUORUM {

@@ -2,7 +2,7 @@
 //!
 //! Pedersen commitments and Shamir shares are both linear, so addition,
 //! subtraction, scaling, public shifts, and negation never open a wire. Products
-//! are supplied by the MPC and proved with the native `qomm-zk` product sigma
+//! are supplied by the MPC and proved with the native `zkfmi-zk` product sigma
 //! protocol, whose responses interpolate. Every nonce contribution is sealed
 //! before the dealing round is opened.
 
@@ -11,9 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::shamir;
-use qomm_zk::sigma::{product_challenge, verify_product, ProductProof};
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::shamir;
+use zkfmi_zk::sigma::{product_challenge, verify_product, ProductProof};
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 

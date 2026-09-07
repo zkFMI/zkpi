@@ -16,8 +16,8 @@
 
 use crate::deterministic_random::DeterministicRng;
 use crate::disclosure::{DpDisclosure, WindowObservation};
-use qomm_measure::beta::ln;
-pub use qomm_measure::beta::{beta_ppf, betainc_public};
+use zkfmi_measure::beta::ln;
+pub use zkfmi_measure::beta::{beta_ppf, betainc_public};
 
 pub fn clopper_pearson(k: usize, n: usize, alpha: f64) -> (f64, f64) {
     let lower = if k == 0 {

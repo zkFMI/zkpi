@@ -6,7 +6,7 @@
 
 use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::threshold_sigma::{deal, verify_share, PartyId, ShareSet};
-use qomm_zk::pedersen::Pedersen;
+use zkfmi_zk::pedersen::Pedersen;
 use rand_core::{CryptoRng, RngCore};
 
 pub use qomm_proofs::quote_proof::{

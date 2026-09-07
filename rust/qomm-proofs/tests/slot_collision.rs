@@ -12,7 +12,7 @@
 //! refuses the configuration; this is the arithmetic that says why.
 
 use curve25519_dalek::scalar::Scalar;
-use qomm_zk::pedersen::Pedersen;
+use zkfmi_zk::pedersen::Pedersen;
 
 fn key() -> Pedersen {
     Pedersen::new(b"qomm:test:slot-collision")

@@ -12,7 +12,7 @@ use qomm_proofs::quote_proof::{
     MinimalityProof, Public as QuotePublic, QuoteCircuit, QuoteProof, RegisteredPolicy,
 };
 use qomm_proofs::threshold_range::ThresholdRangeProof;
-use qomm_zk::sigma::{OpeningProof, ProductProof};
+use zkfmi_zk::sigma::{OpeningProof, ProductProof};
 
 use crate::dvp_issuer::DvpProofs;
 

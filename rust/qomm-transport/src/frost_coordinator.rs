@@ -7,7 +7,7 @@
 use crate::proof_client::ProofPartyRpc;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
-use qomm_zkpi::frost;
+use zkpi::frost;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};

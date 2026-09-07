@@ -23,8 +23,8 @@ use qomm_proofs::threshold_range::{
     RangeStatement, ThresholdRangeProof,
 };
 use qomm_proofs::threshold_sigma::PartyId;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::ProductProof;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::ProductProof;
 use rand_core::{CryptoRng, RngCore};
 use std::collections::BTreeSet;
 

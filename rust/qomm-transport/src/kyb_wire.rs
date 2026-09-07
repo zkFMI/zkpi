@@ -9,7 +9,7 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::kyb::KybIssuerKey;
 use qomm_proofs::kyb::{KybPresentation, SignedCohortRegistry};
-use qomm_zk::or_dleq::Proof;
+use zkfmi_zk::or_dleq::Proof;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

@@ -3,7 +3,7 @@ use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::liquidity::{
     deal_liquidity_shares, joint_prove_liquidity, verify_liquidity, LiquidityProof, LiquidityShares,
 };
-use qomm_zk::pedersen::Pedersen;
+use zkfmi_zk::pedersen::Pedersen;
 use rand_core::OsRng;
 
 const PARTIES: [usize; 7] = [1, 2, 3, 4, 5, 6, 7];

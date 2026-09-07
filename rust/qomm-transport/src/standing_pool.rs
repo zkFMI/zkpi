@@ -1,5 +1,5 @@
 //! Canonical public bindings shared by the proof committee and DeFMI for a
-//! Maker standing reserve.  Keeping these bytes below `qomm-defmi` lets every
+//! Maker standing reserve.  Keeping these bytes below `defmi` lets every
 //! proof node independently reconstruct exactly the message that Avalanche
 //! validators later verify, without importing a ledger implementation or any
 //! wallet secret.
@@ -8,8 +8,8 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 #[cfg(test)]
 use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::threshold_range::ThresholdRangeProof;
-use qomm_zk::sigma::ProductProof;
-use qomm_zkpi::Instruction;
+use zkfmi_zk::sigma::ProductProof;
+use zkpi::Instruction;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256, Sha512};
 
@@ -682,7 +682,7 @@ pub fn threshold_dvp_package_digest(
     }
     let mut hash = Sha256::new();
     hash.update(THRESHOLD_DVP_PACKAGE_DOMAIN);
-    bytes(&mut hash, &qomm_zkpi::wire::encode(instruction));
+    bytes(&mut hash, &zkpi::wire::encode(instruction));
     for handle in [
         &sides.securities_from,
         &sides.securities_to,

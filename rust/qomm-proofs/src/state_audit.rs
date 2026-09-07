@@ -27,9 +27,9 @@ use bulletproofs::RangeProof;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::range::RangeCtx;
-use qomm_zk::sigma::{prove_linear, verify_linear, OpeningProof};
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::range::RangeCtx;
+use zkfmi_zk::sigma::{prove_linear, verify_linear, OpeningProof};
 use rand_core::{CryptoRng, RngCore};
 
 /// Inventory is signed, and a range proof is not, so the whole chain works on

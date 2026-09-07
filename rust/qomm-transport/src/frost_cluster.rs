@@ -9,7 +9,7 @@
 
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
-use qomm_zkpi::{frost, typed, typed_wire, wire as payment_wire, PartialInstruction, QuoteBinding};
+use zkpi::{frost, typed, typed_wire, wire as payment_wire, PartialInstruction, QuoteBinding};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -182,7 +182,7 @@ pub struct StdioFrostCluster {
     parties: Vec<ProofPartyChild>,
     public: frost::keys::PublicKeyPackage,
     selected: Vec<usize>,
-    pq_committee: qomm_zkpi::QuorumPolicy,
+    pq_committee: zkpi::QuorumPolicy,
 }
 
 impl StdioFrostCluster {
@@ -229,7 +229,7 @@ impl StdioFrostCluster {
         &self.public
     }
 
-    pub fn pq_committee(&self) -> &qomm_zkpi::QuorumPolicy {
+    pub fn pq_committee(&self) -> &zkpi::QuorumPolicy {
         &self.pq_committee
     }
 
@@ -254,7 +254,7 @@ impl StdioFrostCluster {
 
     pub fn sign_reserve_context(
         &mut self,
-        payment: &qomm_zkpi::Instruction,
+        payment: &zkpi::Instruction,
         context: &typed::ExecutionContext,
         mandate: ReserveMandateRef<'_>,
     ) -> Result<frost_coordinator::DistributedHybridSignature, String> {
@@ -273,7 +273,7 @@ impl StdioFrostCluster {
         &mut self,
         binding: &StandingPoolAllocationBinding,
         mandate: &MakerPolicyMandate,
-        payment: &qomm_zkpi::Instruction,
+        payment: &zkpi::Instruction,
         dvp_proofs: &DvpProofs,
         pool_remainder_proof: &ThresholdRangeProof,
     ) -> Result<frost_coordinator::DistributedHybridSignature, String> {
@@ -307,7 +307,7 @@ pub fn sign_reserve_payment<T: ProofPartyRpc>(
     parties: &mut [T],
     selected: &[usize],
     public: &frost::keys::PublicKeyPackage,
-    policy: &qomm_zkpi::QuorumPolicy,
+    policy: &zkpi::QuorumPolicy,
     partial: &PartialInstruction,
     mandate: ReserveMandateRef<'_>,
 ) -> Result<frost_coordinator::DistributedHybridSignature, String> {
@@ -375,13 +375,13 @@ pub fn sign_reserve_context<T: ProofPartyRpc>(
     parties: &mut [T],
     selected: &[usize],
     public: &frost::keys::PublicKeyPackage,
-    policy: &qomm_zkpi::QuorumPolicy,
-    payment: &qomm_zkpi::Instruction,
+    policy: &zkpi::QuorumPolicy,
+    payment: &zkpi::Instruction,
     context: &typed::ExecutionContext,
     mandate: ReserveMandateRef<'_>,
 ) -> Result<frost_coordinator::DistributedHybridSignature, String> {
     let message =
-        typed::digest_for(payment, context, qomm_zkpi::DEFAULT_DOMAIN).map_err(str::to_string)?;
+        typed::digest_for(payment, context, zkpi::DEFAULT_DOMAIN).map_err(str::to_string)?;
     let signing_job = signing_job(&message);
     let mut params = mandate.public_params()?;
     let object = params
@@ -423,7 +423,7 @@ pub struct StandingPoolAllocationSignatureRequest<'a> {
     pub public: &'a frost::keys::PublicKeyPackage,
     pub binding: &'a StandingPoolAllocationBinding,
     pub mandate: &'a MakerPolicyMandate,
-    pub payment: &'a qomm_zkpi::Instruction,
+    pub payment: &'a zkpi::Instruction,
     pub dvp_proofs: &'a DvpProofs,
     pub pool_remainder_proof: &'a ThresholdRangeProof,
 }

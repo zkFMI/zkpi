@@ -44,7 +44,7 @@ git rev-parse HEAD
 
 cd rust
 cargo test -j 4 --locked --workspace
-cargo build -j 4 --release --locked -p qomm-zkpi --bin qomm-zkpi-verify
+cargo build -j 4 --release --locked -p zkpi --bin zkpi-verify
 ```
 
 依存lockが変わった場合は進めず、差分を審査する。
@@ -55,7 +55,7 @@ cargo build -j 4 --release --locked -p qomm-zkpi --bin qomm-zkpi-verify
 一つのプロセスで行う。
 
 ```sh
-./target/release/qomm-zkpi-verify --self-test
+./target/release/zkpi-verify --self-test
 ```
 
 終了コード0と、`accepted --- issued, encoded, decoded and verified` が必要である。
@@ -66,9 +66,9 @@ cargo build -j 4 --release --locked -p qomm-zkpi --bin qomm-zkpi-verify
 ```sh
 cd ..
 mkdir -p poc-output/zkpi-vectors
-rust/target/release/qomm-zkpi-verify --vectors poc-output/zkpi-vectors
-rust/target/release/qomm-zkpi-verify --check-vectors poc-output/zkpi-vectors
-rust/target/release/qomm-zkpi-verify --spec > poc-output/zkpi-wire-spec.md
+rust/target/release/zkpi-verify --vectors poc-output/zkpi-vectors
+rust/target/release/zkpi-verify --check-vectors poc-output/zkpi-vectors
+rust/target/release/zkpi-verify --spec > poc-output/zkpi-wire-spec.md
 ```
 
 受理用ベクトルは復号後に同じバイト列へ戻り、壊れた版、短すぎる入力、余分な末尾、
@@ -85,7 +85,7 @@ rust/target/release/qomm-zkpi-verify --spec > poc-output/zkpi-wire-spec.md
 
 ```sh
 cat poc-output/instruction.bin | \
-  rust/target/release/qomm-zkpi-verify \
+  rust/target/release/zkpi-verify \
   --quorum <FROST公開鍵packageの16進表現> \
   --now <検証時刻のUnix秒> \
   --domain <承認したdomain>
@@ -174,7 +174,7 @@ PoC用 `--self-test` の成功は、本番鍵や本番決済の安全性を保�
 この `zkpi` リポジトリが提供するのは、決済指図のライブラリ、正規のバイト形式、独立検証用
 CLIである。DeFMI接続用 `zkpi-defmi-sdk` は
 [DeFMIリポジトリ](https://github.com/zkFMI/defmi) で配布され、`qomm-transport` と
-`qomm-defmi` に依存する。銀行の勘定系や取引所へそのまま公開する完成済みAPIサーバーではない。
+`defmi` に依存する。銀行の勘定系や取引所へそのまま公開する完成済みAPIサーバーではない。
 PoCでは、次の境界を最初に固定する。
 
 | 部品 | このリポジトリで提供 | 導入企業が実装・設定 |
@@ -187,7 +187,7 @@ PoCでは、次の境界を最初に固定する。
 | 二重使用防止 | nullifierの導出 | 正本台帳での原子的な照合・消費 |
 | 鍵管理 | FROSTの型と検証 | DKG、保管、交代、失効、事故対応 |
 
-`qomm-zkpi` は指図そのものを扱う。DeFMIリポジトリの `zkpi-defmi-sdk` は、
+`zkpi` は指図そのものを扱う。DeFMIリポジトリの `zkpi-defmi-sdk` は、
 アプリケーションの定義、7ノードの実行記録、DeFMIの確定状態を一つの業務受領証へ結ぶ。
 両者を同じ配布物と扱わない。
 
@@ -369,8 +369,8 @@ cargo metadata --locked --manifest-path rust/Cargo.toml --format-version 1 \
 release binaryは一度だけbuildし、そのSHA-256を配布台帳へ登録する。
 
 ```sh
-sha256sum rust/target/release/qomm-zkpi-verify \
-  > poc-output/qomm-zkpi-verify.sha256
+sha256sum rust/target/release/zkpi-verify \
+  > poc-output/zkpi-verify.sha256
 ```
 
 同じcommitでも異なるcompilerやfeatureでbytesが変わり得る。受入済みbinaryを別環境で再build

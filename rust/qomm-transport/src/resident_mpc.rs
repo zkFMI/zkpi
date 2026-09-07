@@ -18,7 +18,7 @@ use qomm_mpc::persistence::{
     read_local_dvp_handoff_from_quote, FieldElement as DecimalFieldElement,
 };
 use qomm_mpc::program::ed25519_lagrange_at_zero;
-use qomm_zk::pedersen::Pedersen;
+use zkfmi_zk::pedersen::Pedersen;
 use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

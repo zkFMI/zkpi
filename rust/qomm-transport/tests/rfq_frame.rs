@@ -7,7 +7,7 @@ use qomm_transport::rfq_frame::{
     ResidentRfqCatalogBinding, ResidentRfqInput, ResidentRfqOpenings, RESIDENT_RFQ_FIELDS,
 };
 use qomm_transport::wire::reconstruct;
-use qomm_zk::Pedersen;
+use zkfmi_zk::Pedersen;
 use sha2::{Digest, Sha256};
 
 fn digest(label: &str) -> [u8; 32] {

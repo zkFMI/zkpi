@@ -24,9 +24,9 @@ use bulletproofs::RangeProof;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::range::RangeCtx;
-use qomm_zk::sigma::{prove_bit, verify_bit, BitProof};
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::range::RangeCtx;
+use zkfmi_zk::sigma::{prove_bit, verify_bit, BitProof};
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 

@@ -14,8 +14,8 @@ use qomm_transport::dvp_issuer::{
     DVP_SECURITIES_REMAINDER_CONTEXT,
 };
 use qomm_transport::dvp_wire::{decode, encode, Envelope, Error, Message};
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_product;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_product;
 use rand_core::OsRng;
 use std::collections::BTreeMap;
 

@@ -334,7 +334,7 @@ rather than an alternative. The soundness argument is unchanged and now applies
 per party: the coefficients come from the commitments, so a node has to choose
 its error before it can see the coefficient that would cancel it.
 
-**Built and measured** --- `rust/qomm-harness/src/bin/run_input_check.rs`'s per-party build /
+**Built and measured** --- `rust/zkpi-harness/src/bin/run_input_check.rs`'s per-party build /
 `verify_per_party`, 26 tests, `host-a`:
 
 | inputs | verify, aggregate | verify, per party | |
@@ -408,7 +408,7 @@ The same mechanism, and it had to be run to know. `roles.Trader` and
 `secret_input()` exactly like a policy field, so the accumulator should fold it.
 *Should* is not *does*.
 
-`rust/qomm-harness/src/bin/run_identity.rs` follows one quote end to end (`artifacts/identity.json`):
+`rust/zkpi-harness/src/bin/run_identity.rs` follows one quote end to end (`artifacts/identity.json`):
 
 | | |
 |---|---|

@@ -1,6 +1,6 @@
 //! Bit-decomposition range proofs assembled from Shamir shares.
 //!
-//! This is the threshold form of `qomm_zk::bitrange`: it keeps the per-bit
+//! This is the threshold form of `zkfmi_zk::bitrange`: it keeps the per-bit
 //! commitments and the final linkage opening, but replaces the branch-selecting
 //! OR proof with the field equation `b * b = b`. The resulting proof is not
 //! wire-compatible with the single-prover proof, yet both are ordinary public
@@ -11,9 +11,9 @@ use std::collections::BTreeMap;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
-use qomm_zk::bitrange::{bit_context, component_transcript, suffixed_context};
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::{
+use zkfmi_zk::bitrange::{bit_context, component_transcript, suffixed_context};
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::{
     opening_challenge, product_challenge, verify_zero_opening, OpeningProof, ProductProof,
 };
 use rand_core::{CryptoRng, RngCore};
@@ -423,7 +423,7 @@ pub fn range_relations_from_evaluations(
     })
 }
 
-/// The same composition as `qomm_zk::bitrange::RangeProof`, with product
+/// The same composition as `zkfmi_zk::bitrange::RangeProof`, with product
 /// proofs where its disjunctive bit proofs sit.
 #[derive(Clone, Debug)]
 pub struct ThresholdRangeProof {

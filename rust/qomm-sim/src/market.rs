@@ -32,7 +32,7 @@ pub fn size_bucket(size: i64) -> usize {
     SIZE_BUCKETS.len() - 1
 }
 
-pub use qomm_measure::rounding::round_half_even;
+pub use zkfmi_measure::rounding::round_half_even;
 
 #[derive(Clone, Copy, Debug)]
 pub struct SimConfig {

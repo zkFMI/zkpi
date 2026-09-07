@@ -8,8 +8,8 @@ use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use merlin::Transcript;
 use qomm_proofs::threshold_sigma::{deal, joint_prove_opening, verify_share, PartyId};
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::verify_opening;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_opening;
 use rand_core::OsRng;
 
 const PARTIES: [PartyId; 7] = [1, 2, 3, 4, 5, 6, 7];

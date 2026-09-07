@@ -17,8 +17,8 @@ use crate::application_crypto::{Signature, SigningKey, VerifyingKey, SIGNATURE_B
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::kyb::{KybPresentation, SignedCohortRegistry};
-use qomm_zk::or_dleq::Proof as MembershipProof;
-use qomm_zkpi::frost;
+use zkfmi_zk::or_dleq::Proof as MembershipProof;
+use zkpi::frost;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -96,7 +96,7 @@ pub struct PretradeSettlementVerifier {
     pub price_bits: u16,
     pub max_horizon: u64,
     pub frost_public: frost::keys::PublicKeyPackage,
-    pub pq_committee: qomm_zkpi::QuorumPolicy,
+    pub pq_committee: zkpi::QuorumPolicy,
     pub valid_from: u64,
     pub valid_until: u64,
 }
@@ -541,7 +541,7 @@ struct WireSettlementVerifier {
     price_bits: u16,
     max_horizon: u64,
     frost_public: String,
-    pq_committee: qomm_zkpi::QuorumPolicy,
+    pq_committee: zkpi::QuorumPolicy,
     valid_from: u64,
     valid_until: u64,
 }
@@ -572,7 +572,7 @@ fn settlement_verifier_wire(
     if frost_public.is_empty() || frost_public.len() > 64 * 1024 {
         return Err("pre-trade FROST public package is outside its bound".into());
     }
-    qomm_zkpi::validate_settlement_committee(&value.pq_committee, &value.frost_public)
+    zkpi::validate_settlement_committee(&value.pq_committee, &value.frost_public)
         .map_err(str::to_string)?;
     Ok(WireSettlementVerifier {
         epoch: value.epoch,

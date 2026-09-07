@@ -9,8 +9,8 @@ use qomm_transport::pretrade_authority::{
     PretradeReservationBinding, PretradeSettlementVerifier, ReservationParty,
     TakerPretradeAuthority,
 };
-use qomm_zk::pedersen::Pedersen;
-use qomm_zkpi::deal_quorum;
+use zkfmi_zk::pedersen::Pedersen;
+use zkpi::deal_quorum;
 use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 

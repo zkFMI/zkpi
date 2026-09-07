@@ -1,6 +1,6 @@
 use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::price_limit::{prove, verify, PriceLimitDirection};
-use qomm_zk::pedersen::Pedersen;
+use zkfmi_zk::pedersen::Pedersen;
 use rand_core::OsRng;
 
 #[test]

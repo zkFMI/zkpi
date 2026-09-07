@@ -8,8 +8,8 @@ use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use merlin::Transcript;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::sigma::ProductProof;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::ProductProof;
 use rand_core::{CryptoRng, RngCore};
 
 use crate::threshold_gadgets::{

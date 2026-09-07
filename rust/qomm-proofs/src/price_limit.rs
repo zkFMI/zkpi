@@ -10,7 +10,7 @@ use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use qomm_zk::pedersen::Pedersen;
+use zkfmi_zk::pedersen::Pedersen;
 use sha2::{Digest, Sha256};
 
 const DOMAIN: &[u8] = b"QOMM:TAKER:PRICE-LIMIT:v1";

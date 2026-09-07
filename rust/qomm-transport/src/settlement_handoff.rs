@@ -14,8 +14,8 @@ use curve25519_dalek::scalar::Scalar;
 use qomm_proofs::opening_envelope::{opening_context, EncryptedOpeningShare, OpeningEnvelope};
 use qomm_proofs::price_limit::PriceLimitDirection;
 use qomm_proofs::threshold_range::ThresholdRangeProof;
-use qomm_zkpi::typed::{ExecutionContext, TypedInstruction};
-use qomm_zkpi::{frost, typed, typed_wire, Instruction, DEFAULT_DOMAIN};
+use zkpi::typed::{ExecutionContext, TypedInstruction};
+use zkpi::{frost, typed, typed_wire, Instruction, DEFAULT_DOMAIN};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
@@ -501,7 +501,7 @@ fn encode_record(value: &SettlementHandoff) -> Result<WireRecord, String> {
         lane: value.lane,
         admission_sequence: value.admission_sequence,
         admission_ticket_id: hex32(value.admission_ticket_id),
-        instruction: BASE64.encode(qomm_zkpi::wire::encode(&value.instruction)),
+        instruction: BASE64.encode(zkpi::wire::encode(&value.instruction)),
         frost_public: BASE64.encode(
             value
                 .frost_public
@@ -566,7 +566,7 @@ pub fn decode_private_record(raw: &[u8]) -> Result<SettlementHandoff, String> {
 }
 
 fn decode_record(value: WireRecord) -> Result<SettlementHandoff, String> {
-    let instruction = qomm_zkpi::wire::decode(
+    let instruction = zkpi::wire::decode(
         &BASE64
             .decode(&value.instruction)
             .map_err(|_| "instruction is not valid base64")?,

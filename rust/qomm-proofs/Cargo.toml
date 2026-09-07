@@ -8,7 +8,7 @@ description = "The venue-side proofs: the quote is correct, the policy is well f
 [dependencies]
 zeroize = "1.8"
 zkfmi-crypto.workspace = true
-qomm-zk.workspace = true
+zkfmi-zk.workspace = true
 qomm-dsl.workspace = true
 curve25519-dalek.workspace = true
 bulletproofs.workspace = true

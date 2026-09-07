@@ -7,8 +7,8 @@ use qomm_proofs::threshold_gadgets::{
     CommittedContributions, DealerCoefficientCommitments, NodeContributions,
 };
 use qomm_proofs::threshold_sigma::PartyId;
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::shamir;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::shamir;
 use rand_core::OsRng;
 
 const PARTIES: [PartyId; 7] = [1, 2, 3, 4, 5, 6, 7];

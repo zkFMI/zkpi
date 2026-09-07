@@ -6,8 +6,8 @@ use qomm_transport::roles::{
     audit_node, check_field_width, split, ComputingNode, EntityLimits, EntityRateLimiter,
     InputParty, Refused,
 };
-use qomm_zk::pedersen::Pedersen;
-use qomm_zk::shamir;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::shamir;
 use rand_core::OsRng;
 
 fn reconstruct(bound: &BoundInputs, position: usize) -> Result<Scalar, String> {

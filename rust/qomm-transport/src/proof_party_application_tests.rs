@@ -27,7 +27,7 @@ fn config(root: &Path) -> ProofPartyConfig {
 fn fixture(root: &Path) -> ProofParty {
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).unwrap();
     let mut party = ProofParty::new(config(root)).unwrap();
-    let (mut shares, public) = qomm_zkpi::deal_quorum(7, 3, &mut OsRng).unwrap();
+    let (mut shares, public) = zkpi::deal_quorum(7, 3, &mut OsRng).unwrap();
     let share = shares
         .remove(&frost::Identifier::try_from(1_u16).unwrap())
         .unwrap();

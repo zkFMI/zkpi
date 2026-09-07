@@ -15,8 +15,8 @@ use qomm_transport::zkpi_issuer::{
     relation_statements_from_evaluations, statements_from_evaluations, MpcZkpiNode,
 };
 use qomm_transport::zkpi_wire::{decode, encode, Envelope, Message};
-use qomm_zk::pedersen::Pedersen;
-use qomm_zkpi::{deal_quorum, frost, Bounds, Venue};
+use zkfmi_zk::pedersen::Pedersen;
+use zkpi::{deal_quorum, frost, Bounds, Venue};
 use rand::rngs::OsRng;
 
 const PARTIES: [PartyId; 7] = [1, 2, 3, 4, 5, 6, 7];
