@@ -938,7 +938,6 @@ dependencies = [
  "hex",
  "libc",
  "qomm-proofs",
- "qomm-zk",
  "rand",
  "rand_core 0.6.4",
  "serde",
@@ -947,6 +946,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "zkfmi-crypto",
+ "zkfmi-zk",
 ]
 
 [[package]]
@@ -957,42 +957,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "qomm-harness"
-version = "0.1.0"
-dependencies = [
- "curve25519-dalek",
- "ed25519-dalek",
- "hex",
- "merlin",
- "num-bigint",
- "num-traits",
- "qomm-measure",
- "qomm-proofs",
- "qomm-zk",
- "rand",
- "rand_core 0.6.4",
- "serde_json",
- "sha2",
- "sha3 0.10.9",
-]
-
-[[package]]
-name = "qomm-measure"
-version = "0.1.0"
-
-[[package]]
 name = "qomm-mpc"
 version = "0.1.0"
 dependencies = [
  "hex",
  "qomm-dsl",
- "qomm-measure",
  "rand",
  "rand_core 0.6.4",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
+ "zkfmi-measure",
 ]
 
 [[package]]
@@ -1004,19 +980,19 @@ dependencies = [
  "ed25519-dalek",
  "merlin",
  "qomm-dsl",
- "qomm-zk",
  "rand_core 0.6.4",
  "serde",
  "sha2",
  "zeroize",
  "zkfmi-crypto",
+ "zkfmi-zk",
 ]
 
 [[package]]
 name = "qomm-sim"
 version = "0.1.0"
 dependencies = [
- "qomm-measure",
+ "zkfmi-measure",
 ]
 
 [[package]]
@@ -1035,8 +1011,6 @@ dependencies = [
  "qomm-dsl",
  "qomm-mpc",
  "qomm-proofs",
- "qomm-zk",
- "qomm-zkpi",
  "rand",
  "rand_core 0.6.4",
  "serde",
@@ -1046,39 +1020,8 @@ dependencies = [
  "thiserror 1.0.69",
  "zeroize",
  "zkfmi-crypto",
-]
-
-[[package]]
-name = "qomm-zk"
-version = "0.1.0"
-dependencies = [
- "bulletproofs",
- "curve25519-dalek",
- "merlin",
- "rand",
- "rand_core 0.6.4",
- "sha2",
- "subtle",
-]
-
-[[package]]
-name = "qomm-zkpi"
-version = "0.1.0"
-dependencies = [
- "bulletproofs",
- "curve25519-dalek",
- "frost-core",
- "frost-ristretto255",
- "merlin",
- "qomm-measure",
- "qomm-proofs",
- "qomm-zk",
- "rand",
- "rand_core 0.6.4",
- "serde",
- "serde_json",
- "sha2",
- "zkfmi-crypto",
+ "zkfmi-zk",
+ "zkpi",
 ]
 
 [[package]]
@@ -1617,7 +1560,7 @@ dependencies = [
 [[package]]
 name = "zkfmi-crypto"
 version = "0.1.0"
-source = "git+https://github.com/zkFMI/zkfmi-crypto.git?rev=26ebfe96563a05c3379219f7fdacea137ab5fb4f#26ebfe96563a05c3379219f7fdacea137ab5fb4f"
+source = "git+https://github.com/zkFMI/zkfmi-crypto.git?rev=9a183c90b6ee6af17fce26ca4b235bdb543dc0a0#9a183c90b6ee6af17fce26ca4b235bdb543dc0a0"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -1636,6 +1579,63 @@ dependencies = [
  "toml",
  "x25519-dalek",
  "zeroize",
+]
+
+[[package]]
+name = "zkfmi-measure"
+version = "0.1.0"
+
+[[package]]
+name = "zkfmi-zk"
+version = "0.1.0"
+dependencies = [
+ "bulletproofs",
+ "curve25519-dalek",
+ "merlin",
+ "rand",
+ "rand_core 0.6.4",
+ "sha2",
+ "subtle",
+]
+
+[[package]]
+name = "zkpi"
+version = "0.1.0"
+dependencies = [
+ "bulletproofs",
+ "curve25519-dalek",
+ "frost-core",
+ "frost-ristretto255",
+ "merlin",
+ "qomm-proofs",
+ "rand",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "sha2",
+ "zkfmi-crypto",
+ "zkfmi-measure",
+ "zkfmi-zk",
+]
+
+[[package]]
+name = "zkpi-harness"
+version = "0.1.0"
+dependencies = [
+ "curve25519-dalek",
+ "ed25519-dalek",
+ "hex",
+ "merlin",
+ "num-bigint",
+ "num-traits",
+ "qomm-proofs",
+ "rand",
+ "rand_core 0.6.4",
+ "serde_json",
+ "sha2",
+ "sha3 0.10.9",
+ "zkfmi-measure",
+ "zkfmi-zk",
 ]
 
 [[package]]
