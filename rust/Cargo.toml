@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["qomm-zk","qomm-zkpi","qomm-proofs","qomm-harness"]
+members = ["qomm-zk","qomm-zkpi","qomm-proofs","qomm-transport","qomm-mpc","qomm-audit","qomm-dsl","qomm-sim","qomm-measure","qomm-harness"]
 
 [workspace.package]
 version = "0.1.0"
@@ -37,10 +37,20 @@ libc = "0.2"
 qomm-zk = { path = "qomm-zk" }
 qomm-zkpi = { path = "qomm-zkpi" }
 qomm-proofs = { path = "qomm-proofs" }
-qomm-dsl = { git = "https://github.com/zkFMI/qomm.git", rev = "cbcecd96fed8a0efd6b7d85b7c63aecb20f03cf7" }
-qomm-measure = { git = "https://github.com/zkFMI/qomm.git", rev = "cbcecd96fed8a0efd6b7d85b7c63aecb20f03cf7" }
+qomm-dsl = { path = "qomm-dsl" }
+qomm-measure = { path = "qomm-measure" }
+qomm-sim = { path = "qomm-sim" }
+qomm-mpc = { path = "qomm-mpc" }
+qomm-audit = { path = "qomm-audit" }
+qomm-transport = { path = "qomm-transport" }
 
 [patch."https://github.com/zkFMI/zkpi.git"]
 qomm-proofs = { path = "qomm-proofs" }
 qomm-zk = { path = "qomm-zk" }
 qomm-zkpi = { path = "qomm-zkpi" }
+qomm-transport = { path = "qomm-transport" }
+qomm-mpc = { path = "qomm-mpc" }
+qomm-audit = { path = "qomm-audit" }
+qomm-dsl = { path = "qomm-dsl" }
+qomm-sim = { path = "qomm-sim" }
+qomm-measure = { path = "qomm-measure" }
