@@ -1,18 +1,18 @@
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use zkpi_harness::{parse_value, timing_summary, write_pretty_json, HarnessResult};
-use zkfmi_measure::deterministic_random::DeterministicRng;
-use qomm_proofs::quote_proof::{MakerWitness, QuoteCircuit, Registered};
-use qomm_proofs::threshold_sigma::{deal, joint_opening_from_shares, joint_prove_opening};
-use zkfmi_zk::bitrange::prove_bounded;
-use zkfmi_zk::pedersen::Pedersen;
-use zkfmi_zk::sigma::verify_opening;
 use rand::rngs::OsRng;
 use serde_json::{json, Value};
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Instant;
+use zkfmi_measure::deterministic_random::DeterministicRng;
+use zkfmi_zk::bitrange::prove_bounded;
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::sigma::verify_opening;
+use zkpi_harness::{parse_value, timing_summary, write_pretty_json, HarnessResult};
+use zkpi_proofs::quote_proof::{MakerWitness, QuoteCircuit, Registered};
+use zkpi_proofs::threshold_sigma::{deal, joint_opening_from_shares, joint_prove_opening};
 
 const SENTINEL: i64 = 1 << 20;
 const CONTEXT: &[u8] = b"";
@@ -107,8 +107,8 @@ fn prove_quote(
     qty: i64,
     rng: &mut OsRng,
 ) -> HarnessResult<(
-    qomm_proofs::quote_proof::QuoteProof,
-    qomm_proofs::quote_proof::Public,
+    zkpi_proofs::quote_proof::QuoteProof,
+    zkpi_proofs::quote_proof::Public,
 )> {
     circuit
         .prove(

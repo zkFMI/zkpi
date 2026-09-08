@@ -9,7 +9,7 @@ name = "qomm_audit"
 
 [dependencies]
 zkfmi-crypto.workspace = true
-qomm-proofs.workspace = true
+zkpi-proofs.workspace = true
 zkfmi-zk.workspace = true
 ed25519-dalek.workspace = true
 sha2.workspace = true

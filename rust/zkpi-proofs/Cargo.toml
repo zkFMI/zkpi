@@ -1,0 +1,22 @@
+[package]
+name = "zkpi-proofs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared threshold proofs, quote relations, recipient openings and legal-entity credentials."
+
+[dependencies]
+zeroize = "1.8"
+zkfmi-crypto.workspace = true
+zkfmi-zk.workspace = true
+qomm-dsl.workspace = true
+curve25519-dalek.workspace = true
+bulletproofs.workspace = true
+merlin.workspace = true
+sha2.workspace = true
+rand_core.workspace = true
+ed25519-dalek.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+rand_core = { version = "0.6", features = ["getrandom"] }

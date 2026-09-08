@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["zkfmi-zk","zkpi","qomm-proofs","qomm-transport","qomm-mpc","qomm-audit","qomm-dsl","qomm-sim","zkfmi-measure","zkpi-harness"]
+members = ["zkfmi-zk","zkpi","zkpi-proofs","zkpi-committee","qomm-mpc","qomm-audit","qomm-dsl","qomm-sim","zkfmi-measure","zkpi-harness"]
 
 [workspace.package]
 version = "0.1.0"
@@ -8,7 +8,7 @@ edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-zkfmi-crypto = { git = "https://github.com/zkFMI/zkfmi-crypto.git", rev = "9a183c90b6ee6af17fce26ca4b235bdb543dc0a0" }
+zkfmi-crypto = { git = "https://github.com/zkFMI/zkfmi-crypto.git", rev = "8675b6d7d65f2437963de7184149af3c56d92d45" }
 # Audited by Quarkslab (2019, commissioned by Tari Labs, 30 man-days) together
 # with subtle and bulletproofs. 4.1.3 is the first release carrying the fix for
 # RUSTSEC-2024-0344, a timing leak LLVM introduced into Scalar::sub, so the
@@ -36,19 +36,19 @@ openssl = { version = "=0.10.81", features = ["vendored"] }
 libc = "0.2"
 zkfmi-zk = { path = "zkfmi-zk" }
 zkpi = { path = "zkpi" }
-qomm-proofs = { path = "qomm-proofs" }
+zkpi-proofs = { path = "zkpi-proofs" }
 qomm-dsl = { path = "qomm-dsl" }
 zkfmi-measure = { path = "zkfmi-measure" }
 qomm-sim = { path = "qomm-sim" }
 qomm-mpc = { path = "qomm-mpc" }
 qomm-audit = { path = "qomm-audit" }
-qomm-transport = { path = "qomm-transport" }
+zkpi-committee = { path = "zkpi-committee" }
 
 [patch."https://github.com/zkFMI/zkpi.git"]
-qomm-proofs = { path = "qomm-proofs" }
+zkpi-proofs = { path = "zkpi-proofs" }
 zkfmi-zk = { path = "zkfmi-zk" }
 zkpi = { path = "zkpi" }
-qomm-transport = { path = "qomm-transport" }
+zkpi-committee = { path = "zkpi-committee" }
 qomm-mpc = { path = "qomm-mpc" }
 qomm-audit = { path = "qomm-audit" }
 qomm-dsl = { path = "qomm-dsl" }

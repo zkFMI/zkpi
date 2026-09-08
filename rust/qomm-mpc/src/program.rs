@@ -267,6 +267,23 @@ impl Default for ProgramConfig {
 
 pub const POLICY_RULE_NAME: &str = "qomm_quote_policy";
 
+impl ProgramConfig {
+    /// Sentinel shared by the executable circuit, clear reference and proof
+    /// statement. A wide MPC comparison/mask setting must not make excluded
+    /// makers' packed keys exceed the independently declared minimality range.
+    pub fn packing_sentinel(&self) -> Result<i128, ProgramError> {
+        let packing_bits = if self.persist_quote_proof_wires {
+            let span = u32::try_from(self.quote_span_bits)
+                .map_err(|_| ProgramError("quote span width exceeds u32".into()))?;
+            self.bit_length.min(span)
+        } else {
+            self.bit_length
+        };
+        let maximum_reference = self.ref_table.iter().copied().max().unwrap_or(self.ref_mid);
+        sentinel_for(packing_bits, self.n_mm, 8 * maximum_reference)
+    }
+}
+
 /// Canonical price-policy DSL used by the product MPC generator.
 ///
 /// These are venue admission bounds, not fixture values.  The same checked AST
@@ -571,11 +588,7 @@ pub fn build_program(config: &ProgramConfig) -> Result<String, ProgramError> {
     } else {
         c.maker_assets.clone()
     };
-    let max_ref = *ref_table
-        .iter()
-        .max()
-        .ok_or_else(|| ProgramError("reference table is empty".into()))?;
-    let large = sentinel_for(c.bit_length, c.n_mm, 8 * max_ref)?;
+    let large = c.packing_sentinel()?;
     let mut w = Lines::new();
 
     w.push("\"\"\"QOMM: query-oblivious quote evaluation (generated; do not edit).");
@@ -2023,6 +2036,36 @@ mod tests {
     #[test]
     fn sentinel_matches_the_packing_rule() {
         assert_eq!(sentinel_for(31, 16, 800_000).unwrap(), 33_554_432);
+    }
+
+    #[test]
+    fn wide_execution_keeps_excluded_makers_inside_the_quote_proof_span() {
+        let config = ProgramConfig {
+            n_mm: 4,
+            bit_length: 63,
+            ref_table: vec![15_750, 10_850, 6_420_000],
+            persist_wires: true,
+            persist_zkpi_wires: true,
+            persist_quote_proof_wires: true,
+            public_maker_assets: true,
+            quote_span_bits: PRODUCT_QUOTE_SPAN_BITS,
+            ..ProgramConfig::default()
+        };
+        let maximum_cost = 8 * 6_420_000;
+        // Reproduce the old 63-bit sentinel's impossible 48-bit witness.
+        let old = sentinel_for(63, config.n_mm, maximum_cost).unwrap();
+        assert!(old * config.n_mm as i128 > (1_i128 << config.quote_span_bits));
+        let sentinel = config.packing_sentinel().unwrap();
+        assert!(sentinel > maximum_cost);
+        assert!(2 * sentinel * (config.n_mm as i128) < (1_i128 << config.quote_span_bits));
+        let program = build_program(&config).unwrap();
+        assert!(program.contains("program.set_bit_length(63)"));
+        assert!(program.contains(&format!("LARGE = {sentinel}\n")));
+        let legacy = ProgramConfig {
+            persist_quote_proof_wires: false,
+            ..config
+        };
+        assert_eq!(legacy.packing_sentinel().unwrap(), old);
     }
 
     #[test]

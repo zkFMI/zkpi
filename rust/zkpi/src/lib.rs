@@ -20,12 +20,12 @@ pub mod wire_vectors;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use qomm_proofs::threshold_range::{verify_threshold_range, ThresholdRangeProof};
-use zkfmi_zk::pedersen::Pedersen;
-use zkfmi_zk::range::RangeCtx;
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};
 use std::collections::{BTreeMap, HashSet};
+use zkfmi_zk::pedersen::Pedersen;
+use zkfmi_zk::range::RangeCtx;
+use zkpi_proofs::threshold_range::{verify_threshold_range, ThresholdRangeProof};
 
 pub use frost_ristretto255 as frost;
 pub use zkfmi_crypto::quorum::{QuorumApproval, QuorumPolicy};

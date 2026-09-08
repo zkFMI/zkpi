@@ -5,8 +5,8 @@ use qomm_mpc::inputs::{
     QuoteProofInputs, QUOTE_POLICY_BLINDING_FIELDS,
 };
 use qomm_mpc::program::{
-    build_program, ed25519_lagrange_at_zero, pow2_ceil, sentinel_for, CheckMode, Disclosure, Mode,
-    ProgramConfig, Reference, StopAfter,
+    build_program, ed25519_lagrange_at_zero, pow2_ceil, CheckMode, Disclosure, Mode, ProgramConfig,
+    Reference, StopAfter,
 };
 use std::path::PathBuf;
 
@@ -216,13 +216,9 @@ fn run() -> Result<(), (i32, String)> {
     cli.config.maker_assets = (0..padded)
         .map(|maker| maker % cli.config.n_assets)
         .collect();
-    let max_ref = *cli.config.ref_table.iter().max().ok_or_else(|| {
-        (
-            6,
-            "error: --ref-table must contain at least one entry".into(),
-        )
-    })?;
-    let sentinel = sentinel_for(cli.config.bit_length, padded, 8 * max_ref)
+    let sentinel = cli
+        .config
+        .packing_sentinel()
         .map_err(|e| (4, format!("error: {e}")))?;
 
     if cli.shamir_inputs {

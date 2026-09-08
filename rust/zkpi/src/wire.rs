@@ -58,8 +58,8 @@
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use frost_ristretto255 as frost;
-use qomm_proofs::threshold_range::ThresholdRangeProof;
 use zkfmi_zk::sigma::{OpeningProof, ProductProof};
+use zkpi_proofs::threshold_range::ThresholdRangeProof;
 
 use crate::{Instruction, QuoteBinding, RangeEvidence};
 

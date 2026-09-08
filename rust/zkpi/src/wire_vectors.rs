@@ -18,10 +18,10 @@ use std::collections::BTreeMap;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use frost_ristretto255 as frost;
-use qomm_proofs::threshold_range::{deal_bits, joint_prove_range_from_contributions};
-use qomm_proofs::threshold_sigma::PartyId;
-use zkfmi_zk::pedersen::Pedersen;
 use rand_core::OsRng;
+use zkfmi_zk::pedersen::Pedersen;
+use zkpi_proofs::threshold_range::{deal_bits, joint_prove_range_from_contributions};
+use zkpi_proofs::threshold_sigma::PartyId;
 
 use crate::wire::{decode, encode, fingerprint, MAGIC, VERSION};
 use crate::{

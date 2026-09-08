@@ -98,17 +98,28 @@ Rust crates:
 
 - `rust/zkfmi-zk`
 - `rust/zkpi`
-- `rust/qomm-proofs`
+- `rust/zkpi-proofs`
+- `rust/zkpi-committee`
+- `rust/qomm-dsl`
+- `rust/qomm-sim`
+- `rust/qomm-mpc`
+- `rust/qomm-audit`
 - `rust/zkfmi-measure`
 - `rust/zkpi-harness`
 
 Measurement binaries carried by `zkpi-harness`:
 
 - `run_quote_proof`
-- `run_state_audit`
 - `run_voleith`
 - `zk_bench`
 - `zk_compare`
+
+`zkpi-proofs` and `zkpi-committee` are shared by DeFMI and multiple venues.
+The QOMM-only rule/policy/state/liquidity audits, venue transport modules and
+`run_state_audit` now live in [QOMM](https://github.com/zkFMI/qomm), as
+`qomm-proofs`, `qomm-transport` and `qomm-harness`. Neither zkPI nor DeFMI
+depends on QOMM. Historical transcript labels and recorded artifacts retain
+their original names.
 
 `artifacts/` holds the measurements the numbers in the paper are taken from, as
 the binaries wrote them. Each carries the host it ran on as a label (`host-a`,

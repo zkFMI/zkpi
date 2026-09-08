@@ -5,15 +5,15 @@ use std::collections::BTreeMap;
 
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
-use qomm_proofs::threshold_range::{deal_bits, joint_prove_range_from_contributions};
-use qomm_proofs::threshold_sigma::PartyId;
+use rand::rngs::OsRng;
 use zkfmi_zk::pedersen::Pedersen;
 use zkpi::wire::{decode, encode, VERSION};
 use zkpi::{
     deal_quorum, frost, Bounds, Issuer, PartialInstruction, Venue, AMOUNT_RANGE_CONTEXT,
     PRICE_RANGE_CONTEXT,
 };
-use rand::rngs::OsRng;
+use zkpi_proofs::threshold_range::{deal_bits, joint_prove_range_from_contributions};
+use zkpi_proofs::threshold_sigma::PartyId;
 
 const PARTIES: [PartyId; 7] = [1, 2, 3, 4, 5, 6, 7];
 const QUORUM: [PartyId; 3] = [1, 2, 3];

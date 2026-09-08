@@ -7,7 +7,7 @@ autobins = false
 
 [dependencies]
 zkfmi-measure.workspace = true
-qomm-proofs.workspace = true
+zkpi-proofs.workspace = true
 zkfmi-zk.workspace = true
 curve25519-dalek.workspace = true
 ed25519-dalek.workspace = true
@@ -24,10 +24,6 @@ num-traits = "0.2"
 [[bin]]
 name = "run_quote_proof"
 path = "src/bin/run_quote_proof.rs"
-
-[[bin]]
-name = "run_state_audit"
-path = "src/bin/run_state_audit.rs"
 
 [[bin]]
 name = "run_voleith"
