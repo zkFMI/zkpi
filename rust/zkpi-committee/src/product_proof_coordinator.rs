@@ -133,7 +133,7 @@ pub struct ProductSettlementRequest {
     pub job_id: [u8; 32],
     pub admission_sequence: u64,
     pub admission_ticket_id: [u8; 32],
-    pub quote_verification: QuoteVerificationBundle,
+    pub quote_verification: crate::quote_authorization::QuoteAuthorization,
     pub limit_direction: PriceLimitDirection,
     pub limit_commitment: RistrettoPoint,
     /// Signed Taker mandate digest.  It is also the price-limit transcript
@@ -588,10 +588,25 @@ fn cross_quote(job_id: [u8; 32], message: QuoteMessage) -> Result<QuoteMessage, 
 
 /// Assemble and independently verify a complete-quote proof from seven
 /// resident proof parties.
+/// Prepared public relations, retained without consuming proof-round nonces.
+pub struct PreparedQuote {
+    statement: zkpi_proofs::threshold_quote::QuoteNodeStatement,
+    relations: zkpi_proofs::threshold_quote::QuoteRelationStatements,
+    quote_context: [u8; 32],
+}
+
 pub fn prove_complete_quote<T: ProofPartyRpc>(
     parties: &mut [T],
     request: &CompleteQuoteRequest,
 ) -> Result<QuoteVerificationBundle, String> {
+    let prepared = prepare_complete_quote(parties, request)?;
+    prove_prepared_quote(parties, request, prepared)
+}
+
+pub fn prepare_complete_quote<T: ProofPartyRpc>(
+    parties: &mut [T],
+    request: &CompleteQuoteRequest,
+) -> Result<PreparedQuote, String> {
     request.validate()?;
     if parties.len() != COMMITTEE_SIZE {
         return Err("complete quote proof requires exactly seven parties".into());
@@ -675,6 +690,30 @@ pub fn prove_complete_quote<T: ProofPartyRpc>(
         }
     }
 
+    Ok(PreparedQuote {
+        statement,
+        relations,
+        quote_context,
+    })
+}
+
+/// Generate the original proof after a challenge, or immediately in joint mode.
+pub fn prove_prepared_quote<T: ProofPartyRpc>(
+    parties: &mut [T],
+    request: &CompleteQuoteRequest,
+    prepared: PreparedQuote,
+) -> Result<QuoteVerificationBundle, String> {
+    request.validate()?;
+    if parties.len() != COMMITTEE_SIZE {
+        return Err("quote proof requires seven parties".into());
+    }
+    let circuit = QuoteCircuit::try_new(request.eligibility_bits - 2, request.span_bits)
+        .map_err(str::to_string)?;
+    let PreparedQuote {
+        statement,
+        relations,
+        quote_context,
+    } = prepared;
     let mut seal_wires = Vec::with_capacity(SIGNING_QUORUM.len());
     let mut round_wires = Vec::with_capacity(SIGNING_QUORUM.len());
     let mut seals = Vec::with_capacity(SIGNING_QUORUM.len());
@@ -788,6 +827,50 @@ pub fn prove_complete_quote<T: ProofPartyRpc>(
         }
     }
     Ok(bundle)
+}
+
+/// Select the optimistic option using canonical admission. Returns immediately
+/// after one proposal signature; retained preparation can produce the original
+/// full proof on challenge. No client-carried status grants settlement.
+pub fn propose_optimistic_quote<T: ProofPartyRpc>(
+    parties: &mut [T],
+    request: &CompleteQuoteRequest,
+    admission: &crate::optimistic::NodeExecutionAdmission,
+    proposer_party: usize,
+) -> Result<
+    (
+        crate::quote_authorization::QuoteAuthorization,
+        PreparedQuote,
+    ),
+    String,
+> {
+    if proposer_party == 0 || proposer_party > parties.len() {
+        return Err("optimistic proposer party is outside the committee".into());
+    }
+    let prepared = prepare_complete_quote(parties, request)?;
+    let value = parties[proposer_party - 1].call(
+        "optimistic_quote_propose",
+        json!({
+            "job_id":hex::encode(request.job_id), "admission":admission,
+        }),
+    )?;
+    let raw = public_wire(&value, "optimistic quote authorization")?;
+    let quote = crate::quote_authorization::decode_quote_authorization(&raw)?;
+    if !matches!(&quote, crate::quote_authorization::QuoteAuthorization::Optimistic(q)
+        if q.proposal.context == admission.execution.context && q.policy == admission.policy)
+    {
+        return Err("optimistic quote signer returned another admitted execution".into());
+    }
+    let expected = hex::encode(quote.verify()?);
+    for party in parties.iter_mut() {
+        let accepted = party.call("optimistic_quote_accept", json!({
+            "job_id":hex::encode(request.job_id), "admission":admission, "authorization":BASE64.encode(&raw),
+        }))?;
+        if accepted.get("quote_digest").and_then(Value::as_str) != Some(expected.as_str()) {
+            return Err("proof node did not accept the same optimistic quote".into());
+        }
+    }
+    Ok((quote, prepared))
 }
 
 fn cross_zkpi(job_id: [u8; 32], message: ZkpiMessage) -> Result<ZkpiMessage, String> {

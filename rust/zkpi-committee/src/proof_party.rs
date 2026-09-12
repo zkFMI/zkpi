@@ -398,6 +398,8 @@ struct DurableProofState {
     /// DP publication operation IDs signed from node-local MPC evidence.
     #[serde(default)]
     publication_consumed: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    optimistic_proposals: BTreeMap<String, crate::optimistic::Proposal>,
     /// Reserved before proof evaluations leave the node. An interrupted proof
     /// must use a new identifier rather than replaying the same transcript.
     proof_reserved: Vec<String>,
@@ -723,6 +725,7 @@ struct ProofJob {
     quote_context: Option<Vec<u8>>,
     quote_round1: Option<QuoteRound1Secrets>,
     quote_verified: bool,
+    optimistic_quote: Option<[u8; 32]>,
     zkpi: Option<MpcZkpiNode>,
     zkpi_bound: Option<BoundMpcZkpiNode>,
     zkpi_statements: Option<ZkpiStatements>,
@@ -930,6 +933,7 @@ pub struct ProofParty {
     /// signing job -> SHA-256(message), persisted before nonce generation.
     frost_authorized: BTreeMap<[u8; 32], [u8; 32]>,
     publication_consumed: BTreeSet<[u8; 32]>,
+    optimistic_proposals: BTreeMap<String, crate::optimistic::Proposal>,
     state_store: ProofStateStore,
     state_generation: u64,
     state_healthy: bool,
@@ -987,6 +991,7 @@ impl ProofParty {
                 frost_consumed: Vec::new(),
                 frost_authorized: BTreeMap::new(),
                 publication_consumed: Vec::new(),
+                optimistic_proposals: BTreeMap::new(),
                 proof_reserved: Vec::new(),
                 proof_completed: Vec::new(),
                 completed_evidence: BTreeMap::new(),
@@ -1378,6 +1383,7 @@ impl ProofParty {
                 &state.publication_consumed,
                 "stored publication completions",
             )?,
+            optimistic_proposals: state.optimistic_proposals.clone(),
             state_store,
             state_generation: state.generation,
             state_healthy: true,
@@ -1492,6 +1498,85 @@ impl ProofParty {
         Ok((signed, self.application_identity.verifying_key().to_bytes()))
     }
 
+    /// Sign a provisional result supplied by the node's native MPC executor.
+    /// No generic RPC exposes this method: the application must bind context
+    /// and output to its actual executed job, as for public-result attestations.
+    /// The claim is persisted before returning and cannot be changed after a
+    /// restart. Collateral enrollment and finalization belong to the ledger.
+    pub fn sign_optimistic_execution(
+        &mut self,
+        policy: &crate::optimistic::OptimisticPolicy,
+        context: crate::optimistic::ExecutionContext,
+        output_root: [u8; 32],
+        valid_until: u64,
+    ) -> Result<crate::optimistic::Proposal, String> {
+        if !self.state_healthy {
+            return Err("proof-party durable state is unavailable; node is fail-closed".into());
+        }
+        let job = hex::encode(Sha256::new()
+            .chain_update(b"zkFMI:optimistic:node-job:v1")
+            .chain_update(context.network).chain_update(context.application)
+            .chain_update(context.job).finalize());
+        if let Some(existing) = self.optimistic_proposals.get(&job) {
+            if existing.policy != policy.digest()? || existing.context != context
+                || existing.output_root != output_root
+                || existing.valid_until != valid_until
+            {
+                return Err("node already signed another optimistic claim for this execution".into());
+            }
+            return Ok(existing.clone());
+        }
+        let proposal = crate::optimistic::Proposal::signed(
+            policy, context, output_root, valid_until, &self.application_identity,
+        )?;
+        self.optimistic_proposals.insert(job, proposal.clone());
+        self.persist()?;
+        Ok(proposal)
+    }
+
+    pub fn sign_admitted_optimistic_execution(
+        &mut self, admission: &crate::optimistic::NodeExecutionAdmission, output_root: [u8;32],
+    ) -> Result<crate::optimistic::Proposal, String> {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs();
+        admission.verify(self.config.trusted_defmi_receipt_public.ok_or("node has no pinned DeFMI receipt authority")?, now)?;
+        self.sign_optimistic_execution(&admission.policy, admission.execution.context.clone(), output_root, admission.execution.valid_until)
+    }
+
+    fn admitted_optimistic_quote(&self, params: &Value) -> Result<(
+        crate::optimistic::NodeExecutionAdmission, crate::quote_authorization::OptimisticQuote,
+    ), String> {
+        let job_id = Self::job_id(params)?;
+        let admission: crate::optimistic::NodeExecutionAdmission = serde_json::from_value(
+            params.get("admission").cloned().ok_or("optimistic node admission is missing")?,
+        ).map_err(|e| e.to_string())?;
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs();
+        admission.verify(self.config.trusted_defmi_receipt_public.ok_or("node has no pinned DeFMI receipt authority")?, now)?;
+        let job = self.jobs.get(&job_id).ok_or("optimistic quote job is not loaded")?;
+        if job.quote_relations.is_none() || admission.execution.context.job != job_id {
+            return Err("optimistic quote has not bound the complete MPC statement".into());
+        }
+        let public = job.quote_public.as_ref().ok_or("optimistic quote public input is absent")?;
+        let statement = job.quote_statement.as_ref().ok_or("optimistic quote statement is absent")?;
+        let context: [u8;32] = job.quote_context.as_deref().ok_or("quote context is absent")?.try_into().map_err(|_| "quote context is not 32 bytes")?;
+        let input = crate::optimistic::quote_input_root(public, context, self.config.quote_eligibility_bits - 2, self.config.quote_span_bits)?;
+        if input != admission.execution.context.input_root {
+            return Err("optimistic admission does not name this node's bound MPC input".into());
+        }
+        // The proposal is created by the signing handler; no unsigned evidence
+        // constructed here can pass QuoteAuthorization::verify.
+        let proposal = crate::optimistic::Proposal {
+            policy:admission.execution.policy, context:admission.execution.context.clone(),
+            output_root:crate::optimistic::quote_output_root(statement.winner_index, statement.winner_value),
+            valid_until:admission.execution.valid_until, signature:Vec::new(),
+        };
+        let quote = crate::quote_authorization::OptimisticQuote {
+            context, eligibility_bits:self.config.quote_eligibility_bits - 2, span_bits:self.config.quote_span_bits,
+            public:public.clone(), winner_index:statement.winner_index, winner_value:statement.winner_value,
+            policy:admission.policy.clone(), proposal,
+        };
+        Ok((admission, quote))
+    }
+
     fn durable_state(&self, generation: u64) -> Result<DurableProofState, String> {
         let encode_set =
             |values: &BTreeSet<[u8; 32]>| values.iter().map(hex::encode).collect::<Vec<_>>();
@@ -1574,6 +1659,7 @@ impl ProofParty {
                 .map(|(job, message)| (hex::encode(job), hex::encode(message)))
                 .collect(),
             publication_consumed: encode_set(&self.publication_consumed),
+            optimistic_proposals: self.optimistic_proposals.clone(),
             proof_reserved: encode_set(&self.reserved),
             proof_completed: encode_set(&self.completed),
             completed_evidence: self
@@ -2844,7 +2930,7 @@ impl ProofParty {
                     let job = self.jobs.get(&proof_job).ok_or_else(|| {
                         "standing pool authorization proof job is not active".to_string()
                     })?;
-                    if !job.quote_verified
+                    if (!job.quote_verified && job.optimistic_quote.is_none())
                         || !job.dvp_response_issued
                         || !job.pool_remainder_response_issued
                     {
@@ -3015,7 +3101,7 @@ impl ProofParty {
                         job.quote_verified,
                     )
                 };
-                if !quote_verified {
+                if !quote_verified && self.jobs.get(&proof_job).and_then(|j| j.optimistic_quote).is_none() {
                     return Err("zkPI cannot be authorized before the complete quote proof".into());
                 }
                 if quote_digest != expected_quote_digest {
@@ -3578,6 +3664,7 @@ impl ProofParty {
                         quote_context: None,
                         quote_round1: None,
                         quote_verified: !self.config.complete_quote_proof,
+                        optimistic_quote: None,
                         zkpi: Some(zkpi),
                         zkpi_bound: None,
                         zkpi_statements: None,
@@ -3787,6 +3874,35 @@ impl ProofParty {
                     )?;
                 Self::encoded_quote(job_id, QuoteMessage::Round2(response))
             }
+            "optimistic_quote_propose" => {
+                let (admission, mut quote) = self.admitted_optimistic_quote(params)?;
+                quote.proposal = self.sign_optimistic_execution(
+                    &admission.policy, admission.execution.context, quote.proposal.output_root, admission.execution.valid_until,
+                )?;
+                let raw = crate::quote_authorization::encode_quote_authorization(
+                    &crate::quote_authorization::QuoteAuthorization::Optimistic(quote),
+                )?;
+                Ok(Value::String(BASE64.encode(raw)))
+            }
+            "optimistic_quote_accept" => {
+                let job_id = Self::job_id(params)?;
+                let (admission, expected) = self.admitted_optimistic_quote(params)?;
+                let quote = crate::quote_authorization::decode_quote_authorization(&Self::one_wire(params, "authorization")?)?;
+                let digest = quote.verify()?;
+                match &quote {
+                    crate::quote_authorization::QuoteAuthorization::Optimistic(q)
+                        if q.policy == admission.policy && q.proposal.context == admission.execution.context
+                            && q.proposal.output_root == expected.proposal.output_root => {},
+                    _ => return Err("optimistic quote differs from this node's admitted MPC statement".into()),
+                }
+                let job = self.job_mut(&job_id)?;
+                if job.quote_verified || job.optimistic_quote.is_some_and(|old| old != digest) {
+                    return Err("quote job already has another assurance result".into());
+                }
+                job.expected_quote_digest = digest;
+                job.optimistic_quote = Some(digest);
+                Ok(json!({"quote_digest":hex::encode(digest),"assurance":"optimistic"}))
+            }
             "quote_finalize" => {
                 let job_id = Self::job_id(params)?;
                 let decode_messages = |name: &str| -> Result<Vec<QuoteMessage>, String> {
@@ -3866,7 +3982,7 @@ impl ProofParty {
                         .ok_or_else(|| "quote context is absent".to_string())?,
                 )?;
                 let digest = quote_proof_digest(public, &proof);
-                job.expected_quote_digest = digest;
+                if job.optimistic_quote.is_none() { job.expected_quote_digest = digest; }
                 job.quote_verified = true;
                 Ok(
                     json!({"party": self.config.node as usize + 1, "quote_digest": hex::encode(digest)}),
@@ -4597,7 +4713,7 @@ impl ProofParty {
                         "a signing proof job cannot be closed through the observer path".into(),
                     );
                 }
-                if !job.quote_verified
+                if (!job.quote_verified && job.optimistic_quote.is_none())
                     || job.zkpi_bound.is_none()
                     || job.zkpi_statements.is_none()
                     || job.limit_bound.is_none()

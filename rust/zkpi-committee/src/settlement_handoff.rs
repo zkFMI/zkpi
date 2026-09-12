@@ -6,6 +6,7 @@
 //! policy, inventory, or cleartext Shamir-share openings. Each encrypted
 //! opening share is recipient-bound and remains opaque to the coordinator.
 
+use crate::quote_authorization::{QuoteAuthorization, decode_quote_authorization, encode_quote_authorization};
 use crate::application_crypto::{Signature as ApplicationSignature, VerifyingKey};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
@@ -30,8 +31,8 @@ use crate::order::{
     NodeAdmissionAttestation, NodeExecutionAttestation, COMMITTEE_NODES,
 };
 use crate::proof_codec::{
-    decode_dvp_proofs, decode_quote_verification, decode_threshold_range, encode_dvp_proofs,
-    encode_quote_verification, encode_threshold_range, QuoteVerificationBundle,
+    decode_dvp_proofs,  decode_threshold_range, encode_dvp_proofs,
+     encode_threshold_range,
 };
 
 pub const HANDOFF_VERSION: u8 = 9;
@@ -50,7 +51,7 @@ pub struct SettlementHandoff {
     /// Complete threshold quote statement and proof. Every DeFMI/Avalanche
     /// validator recomputes `quote_digest`; a submitter-supplied digest is not
     /// accepted as evidence that the winning price was calculated correctly.
-    pub quote_verification: QuoteVerificationBundle,
+    pub quote_verification: QuoteAuthorization,
     pub limit_direction: PriceLimitDirection,
     pub limit_commitment: RistrettoPoint,
     pub limit_context: [u8; 32],
@@ -279,7 +280,7 @@ impl SettlementHandoffBundle {
                     "settlement proof job is not bound to its signed MPC execution lane".into(),
                 );
             }
-            if record.quote_verification.context
+            if record.quote_verification.context()
                 != complete_quote_context(record.job_id, record.limit_context)
             {
                 return Err(
@@ -509,7 +510,7 @@ fn encode_record(value: &SettlementHandoff) -> Result<WireRecord, String> {
                 .map_err(|_| "FROST public package serialization failed")?,
         ),
         quote_digest: hex32(value.quote_digest),
-        quote_verification: BASE64.encode(encode_quote_verification(&value.quote_verification)?),
+        quote_verification: BASE64.encode(encode_quote_authorization(&value.quote_verification)?),
         limit_direction: value.limit_direction as u8,
         limit_commitment: hex32(value.limit_commitment.compress().to_bytes()),
         limit_context: hex32(value.limit_context),
@@ -628,7 +629,7 @@ fn decode_record(value: WireRecord) -> Result<SettlementHandoff, String> {
         instruction,
         frost_public,
         quote_digest: parse_hex32(&value.quote_digest, "quote_digest")?,
-        quote_verification: decode_quote_verification(
+        quote_verification: decode_quote_authorization(
             &BASE64
                 .decode(&value.quote_verification)
                 .map_err(|_| "quote_verification is not valid base64")?,

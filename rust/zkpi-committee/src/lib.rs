@@ -16,6 +16,8 @@ pub mod mandate;
 pub mod mpc_result;
 pub mod node_service;
 pub mod order;
+pub mod optimistic;
+pub mod quote_authorization;
 pub mod pretrade_authority;
 pub mod product_proof_coordinator;
 pub mod proof_client;

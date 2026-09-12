@@ -8,6 +8,7 @@ license.workspace = true
 name = "zkpi_committee"
 
 [dependencies]
+zkpi-optimistic.workspace = true
 zkfmi-crypto = { workspace = true, features = ["tls"] }
 hkdf = "0.12"
 zeroize = "1.8"

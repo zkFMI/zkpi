@@ -1598,6 +1598,7 @@ dependencies = [
  "zkfmi-crypto",
  "zkfmi-zk",
  "zkpi",
+ "zkpi-optimistic",
  "zkpi-proofs",
 ]
 
@@ -1619,6 +1620,16 @@ dependencies = [
  "zkfmi-measure",
  "zkfmi-zk",
  "zkpi-proofs",
+]
+
+[[package]]
+name = "zkpi-optimistic"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

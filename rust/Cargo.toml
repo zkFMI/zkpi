@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["zkfmi-zk","zkpi","zkpi-proofs","zkpi-committee","qomm-mpc","qomm-audit","qomm-dsl","qomm-sim","zkfmi-measure","zkpi-harness"]
+members = ["zkfmi-zk","zkpi","zkpi-proofs","zkpi-committee","zkpi-optimistic","qomm-mpc","qomm-audit","qomm-dsl","qomm-sim","zkfmi-measure","zkpi-harness"]
 
 [workspace.package]
 version = "0.1.0"
@@ -43,12 +43,14 @@ qomm-sim = { path = "qomm-sim" }
 qomm-mpc = { path = "qomm-mpc" }
 qomm-audit = { path = "qomm-audit" }
 zkpi-committee = { path = "zkpi-committee" }
+zkpi-optimistic = { path = "zkpi-optimistic" }
 
 [patch."https://github.com/zkFMI/zkpi.git"]
 zkpi-proofs = { path = "zkpi-proofs" }
 zkfmi-zk = { path = "zkfmi-zk" }
 zkpi = { path = "zkpi" }
 zkpi-committee = { path = "zkpi-committee" }
+zkpi-optimistic = { path = "zkpi-optimistic" }
 qomm-mpc = { path = "qomm-mpc" }
 qomm-audit = { path = "qomm-audit" }
 qomm-dsl = { path = "qomm-dsl" }
